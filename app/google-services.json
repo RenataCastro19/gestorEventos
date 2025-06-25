@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "275966830253",
+    "project_id": "gestoreventos-c3da7",
+    "storage_bucket": "gestoreventos-c3da7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:275966830253:android:3d78851ef76a4a0f78c824",
+        "android_client_info": {
+          "package_name": "com.example.gestoreventos"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCrDe_yPWINWBzA2n4sBlWm1JU3GGbUbss"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
