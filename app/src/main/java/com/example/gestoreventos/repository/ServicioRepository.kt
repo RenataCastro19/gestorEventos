@@ -35,4 +35,16 @@ class ServicioRepository {
             }
     }
 
+    fun actualizarServicio(
+        servicio: Servicio,
+        onSuccess: () -> Unit,
+        onFailure: (Exception) -> Unit
+    ) {
+        db.collection("servicios")
+            .document(servicio.id)
+            .set(servicio)
+            .addOnSuccessListener { onSuccess() }
+            .addOnFailureListener { e -> onFailure(e) }
+    }
+
 }

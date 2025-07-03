@@ -2,10 +2,13 @@ package com.example.gestoreventos.viewmodel
 
 import androidx.lifecycle.ViewModel
 import com.example.gestoreventos.model.Mobiliario
+import com.example.gestoreventos.model.CategoriaMobiliario
 import com.example.gestoreventos.repository.MobiliarioRepository
+import com.example.gestoreventos.repository.CategoriaMobiliarioRepository
 
 class MobiliarioViewModel : ViewModel() {
     private val repository = MobiliarioRepository()
+    private val categoriaRepository = CategoriaMobiliarioRepository()
 
     fun agregarMobiliario(
         idCategoria: String,
@@ -43,6 +46,28 @@ class MobiliarioViewModel : ViewModel() {
     }
     fun obtenerMobiliario(onResult: (List<Mobiliario>) -> Unit) {
         repository.obtenerMobiliarios(onResult)
+    }
+
+    fun obtenerCategoriasMobiliario(onResult: (List<CategoriaMobiliario>) -> Unit) {
+        categoriaRepository.obtenerCategorias(onResult)
+    }
+
+    fun inhabilitarMobiliario(mobiliario: Mobiliario, onSuccess: () -> Unit, onFailure: (Exception) -> Unit) {
+        val inhabilitado = mobiliario.copy(estado = "inhabilitado")
+        repository.actualizarMobiliario(
+            mobiliario = inhabilitado,
+            onSuccess = onSuccess,
+            onFailure = onFailure
+        )
+    }
+
+    fun habilitarMobiliario(mobiliario: Mobiliario, onSuccess: () -> Unit, onFailure: (Exception) -> Unit) {
+        val habilitado = mobiliario.copy(estado = "activo")
+        repository.actualizarMobiliario(
+            mobiliario = habilitado,
+            onSuccess = onSuccess,
+            onFailure = onFailure
+        )
     }
 
 }

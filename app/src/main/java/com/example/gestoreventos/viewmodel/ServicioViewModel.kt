@@ -50,4 +50,22 @@ class ServicioViewModel : ViewModel() {
         repository.obtenerServicios(onResult)
     }
 
+    fun inhabilitarServicio(servicio: Servicio, onSuccess: () -> Unit, onFailure: (Exception) -> Unit) {
+        val inhabilitado = servicio.copy(estado = "inhabilitado")
+        repository.actualizarServicio(
+            servicio = inhabilitado,
+            onSuccess = onSuccess,
+            onFailure = onFailure
+        )
+    }
+
+    fun habilitarServicio(servicio: Servicio, onSuccess: () -> Unit, onFailure: (Exception) -> Unit) {
+        val habilitado = servicio.copy(estado = "activo")
+        repository.actualizarServicio(
+            servicio = habilitado,
+            onSuccess = onSuccess,
+            onFailure = onFailure
+        )
+    }
+
 }

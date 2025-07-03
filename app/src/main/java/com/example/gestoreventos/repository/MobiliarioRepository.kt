@@ -36,4 +36,16 @@ class MobiliarioRepository {
                 onResult(emptyList())
             }
     }
+
+    fun actualizarMobiliario(
+        mobiliario: Mobiliario,
+        onSuccess: () -> Unit,
+        onFailure: (Exception) -> Unit
+    ) {
+        db.collection("mobiliarios")
+            .document(mobiliario.id)
+            .set(mobiliario)
+            .addOnSuccessListener { onSuccess() }
+            .addOnFailureListener { e -> onFailure(e) }
+    }
 }

@@ -107,4 +107,50 @@ class UsuarioViewModel : ViewModel() {
             onFailure = onFailure
         )
     }
+
+    fun crearSuperAdminPorDefecto() {
+        // Verificar si ya existe un super admin
+        repository.verificarSuperAdminExiste { existe ->
+            if (!existe) {
+                // Crear super admin por defecto
+                agregarUsuario(
+                    id = "0001",
+                    nombre = "Super",
+                    apellidoPaterno = "Admin",
+                    apellidoMaterno = "",
+                    telefono = "0000000000",
+                    contrasena = "admin123",
+                    rol = "super_admin",
+                    onSuccess = {
+                        println("Super admin creado exitosamente")
+                    },
+                    onFailure = { exception ->
+                        println("Error al crear super admin: ${exception.message}")
+                    }
+                )
+            }
+        }
+
+        // Verificar si ya existe un admin
+        repository.verificarAdminExiste { existe ->
+            if (!existe) {
+                // Crear admin por defecto
+                agregarUsuario(
+                    id = "0002",
+                    nombre = "Admin",
+                    apellidoPaterno = "User",
+                    apellidoMaterno = "",
+                    telefono = "0000000000",
+                    contrasena = "admin123",
+                    rol = "admin",
+                    onSuccess = {
+                        println("Admin creado exitosamente")
+                    },
+                    onFailure = { exception ->
+                        println("Error al crear admin: ${exception.message}")
+                    }
+                )
+            }
+        }
+    }
 }

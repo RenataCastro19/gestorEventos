@@ -20,7 +20,7 @@ import com.example.gestoreventos.ui.theme.GrayLight
 import com.example.gestoreventos.view.ElegantButton
 
 @Composable
-fun HomeScreenSuperAdmin(
+fun HomeScreenAdmin(
     onMobiliarioClick: () -> Unit = {},
     onEmpleadosClick: () -> Unit = {},
     onEventosClick: () -> Unit = {},
@@ -117,5 +117,4 @@ fun HomeScreenSuperAdmin(
         }
     }
 }
-
 

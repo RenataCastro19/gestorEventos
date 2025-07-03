@@ -12,8 +12,20 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import androidx.compose.runtime.*
 import com.example.gestoreventos.ui.theme.GestorEventosTheme
 import com.example.gestoreventos.view.*
+import com.example.gestoreventos.viewmodel.EventoViewModel
+import com.example.gestoreventos.viewmodel.UsuarioViewModel
+import com.example.gestoreventos.viewmodel.SuperAdminViewModel
+import com.example.gestoreventos.model.Evento
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.runtime.collectAsState
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -22,55 +34,289 @@ class MainActivity : ComponentActivity() {
         setContent {
             GestorEventosTheme {
                 val navController = rememberNavController()
+                val usuarioViewModel: UsuarioViewModel = viewModel()
+                val usuarioActual by usuarioViewModel.usuarioActual.collectAsState()
+                val eventoViewModel: EventoViewModel = viewModel()
+                val eventos by eventoViewModel.eventos.collectAsState()
+
+                // Crear super admin por defecto si no existe
+                LaunchedEffect(Unit) {
+                    usuarioViewModel.crearSuperAdminPorDefecto()
+                }
+
+                // Redirección automática tras login según rol
+                LaunchedEffect(usuarioActual) {
+                    usuarioActual?.let { usuario ->
+                        when (usuario.rol) {
+                            "super_admin" -> navController.navigate("superadmin_home")
+                            "admin" -> navController.navigate("admin_home")
+                            "empleado" -> navController.navigate("empleado_home")
+                        }
+                    }
+                }
+
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     NavHost(
                         navController = navController,
-                        startDestination = "home_superadmin",
+                        startDestination = "login",
                         modifier = Modifier.padding(innerPadding)
                     ) {
-                        composable("home_superadmin") {
-                            HomeScreenSuperAdmin(
-                                onMobiliarioClick = { navController.navigate("mobiliario_list") },
-                                onEmpleadosClick = { navController.navigate("empleados_list") },
-                                onEventosClick = { navController.navigate("eventos_list") },
-                                onServiciosClick = { navController.navigate("servicios_list") }
+                        // Pantalla de Login
+                        composable("login") {
+                            LoginScreen(
+                                navController = navController,
+                                usuarioViewModel = usuarioViewModel
                             )
                         }
+
+                        // Rutas protegidas - solo para super admin
+                        composable("superadmin_home") {
+                            if (usuarioActual?.rol == "super_admin") {
+                                HomeScreenSuperAdmin(
+                                    onMobiliarioClick = { navController.navigate("mobiliario_list") },
+                                    onEmpleadosClick = { navController.navigate("empleados_list") },
+                                    onEventosClick = { navController.navigate("eventos_list") },
+                                    onServiciosClick = { navController.navigate("servicios_list") },
+                                    onLogoutClick = {
+                                        usuarioViewModel.logout()
+                                        navController.navigate("login") {
+                                            popUpTo("login") { inclusive = true }
+                                        }
+                                    }
+                                )
+                            } else {
+                                // Redirigir al login si no es super admin
+                                LaunchedEffect(Unit) {
+                                    navController.navigate("login") {
+                                        popUpTo("login") { inclusive = true }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Rutas protegidas - para admin (sin acceso a empleados)
+                        composable("admin_home") {
+                            if (usuarioActual?.rol == "admin") {
+                                HomeScreenAdmin(
+                                    onMobiliarioClick = { navController.navigate("mobiliario_list") },
+                                    onEmpleadosClick = { navController.navigate("empleados_list_admin") },
+                                    onEventosClick = { navController.navigate("eventos_list") },
+                                    onServiciosClick = { navController.navigate("servicios_list") },
+                                    onLogoutClick = {
+                                        usuarioViewModel.logout()
+                                        navController.navigate("login") {
+                                            popUpTo("login") { inclusive = true }
+                                        }
+                                    }
+                                )
+                            } else {
+                                // Redirigir al login si no es admin
+                                LaunchedEffect(Unit) {
+                                    navController.navigate("login") {
+                                        popUpTo("login") { inclusive = true }
+                                    }
+                                }
+                            }
+                        }
+                        // Rutas protegidas - accesibles para super admin y admin
                         composable("mobiliario_list") {
-                            MobiliarioListScreen(
-                                onAgregarMobiliarioClick = { navController.navigate("agregar_mobiliario") },
-                                onAgregarCategoriaClick = { navController.navigate("agregar_categoria_mobiliario") }
-                            )
+                            if (usuarioActual?.rol == "super_admin" || usuarioActual?.rol == "admin") {
+                                MobiliarioListScreen(
+                                    onAgregarMobiliarioClick = { navController.navigate("agregar_mobiliario") },
+                                    onAgregarCategoriaClick = { navController.navigate("agregar_categoria_mobiliario") }
+                                )
+                            } else {
+                                LaunchedEffect(Unit) {
+                                    navController.navigate("login") {
+                                        popUpTo("login") { inclusive = true }
+                                    }
+                                }
+                            }
                         }
                         composable("agregar_mobiliario") {
-                            AgregarMobiliarioForm()
+                            if (usuarioActual?.rol == "super_admin" || usuarioActual?.rol == "admin") {
+                                AgregarMobiliarioForm()
+                            } else {
+                                LaunchedEffect(Unit) {
+                                    navController.navigate("login") {
+                                        popUpTo("login") { inclusive = true }
+                                    }
+                                }
+                            }
                         }
                         composable("agregar_categoria_mobiliario") {
-                            AgregarCategoriaMobiliarioForm()
+                            if (usuarioActual?.rol == "super_admin" || usuarioActual?.rol == "admin") {
+                                AgregarCategoriaMobiliarioForm()
+                            } else {
+                                LaunchedEffect(Unit) {
+                                    navController.navigate("login") {
+                                        popUpTo("login") { inclusive = true }
+                                    }
+                                }
+                            }
                         }
+                        // Rutas protegidas - solo para super admin (empleados)
                         composable("empleados_list") {
-                            EmpleadosListScreen(
-                                onAgregarEmpleadoClick = { navController.navigate("registro_usuario") }
-                            )
+                            if (usuarioActual?.rol == "super_admin") {
+                                val superAdminViewModel: SuperAdminViewModel = viewModel()
+
+                                // Establecer el usuario actual en el ViewModel
+                                LaunchedEffect(usuarioActual) {
+                                    usuarioActual?.let { usuario ->
+                                        superAdminViewModel.establecerUsuarioActual(usuario)
+                                    }
+                                }
+
+                                EmpleadosListScreen(
+                                    onAgregarEmpleadoClick = { navController.navigate("registro_usuario") },
+                                    viewModel = superAdminViewModel
+                                )
+                            } else {
+                                LaunchedEffect(Unit) {
+                                    navController.navigate("login") {
+                                        popUpTo("login") { inclusive = true }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Rutas protegidas - para admin (empleados sin agregar)
+                        composable("empleados_list_admin") {
+                            if (usuarioActual?.rol == "admin") {
+                                val superAdminViewModel: SuperAdminViewModel = viewModel()
+
+                                // Establecer el usuario actual en el ViewModel
+                                LaunchedEffect(usuarioActual) {
+                                    usuarioActual?.let { usuario ->
+                                        superAdminViewModel.establecerUsuarioActual(usuario)
+                                    }
+                                }
+
+                                EmpleadosListScreenAdmin(viewModel = superAdminViewModel)
+                            } else {
+                                LaunchedEffect(Unit) {
+                                    navController.navigate("login") {
+                                        popUpTo("login") { inclusive = true }
+                                    }
+                                }
+                            }
                         }
                         composable("registro_usuario") {
-                            RegistroUsuarioScreen()
+                            if (usuarioActual?.rol == "super_admin") {
+                                RegistroUsuarioScreen()
+                            } else {
+                                LaunchedEffect(Unit) {
+                                    navController.navigate("login") {
+                                        popUpTo("login") { inclusive = true }
+                                    }
+                                }
+                            }
                         }
                         composable("eventos_list") {
-                            EventosListScreen(
-                                onAgregarEventoClick = { navController.navigate("agregar_evento") }
-                            )
+                            if (usuarioActual?.rol == "super_admin" || usuarioActual?.rol == "admin") {
+                                EventosListScreen(
+                                    onAgregarEventoClick = { navController.navigate("agregar_evento") },
+                                    onEditarEventoClick = { eventoId ->
+                                        navController.navigate("editar_evento/$eventoId")
+                                    }
+                                )
+                            } else {
+                                LaunchedEffect(Unit) {
+                                    navController.navigate("login") {
+                                        popUpTo("login") { inclusive = true }
+                                    }
+                                }
+                            }
                         }
                         composable("agregar_evento") {
-                            AgregarEventoForm()
+                            if (usuarioActual?.rol == "super_admin" || usuarioActual?.rol == "admin") {
+                                AgregarEventoForm()
+                            } else {
+                                LaunchedEffect(Unit) {
+                                    navController.navigate("login") {
+                                        popUpTo("login") { inclusive = true }
+                                    }
+                                }
+                            }
+                        }
+                        composable(
+                            route = "editar_evento/{eventoId}",
+                            arguments = listOf(
+                                navArgument("eventoId") { type = NavType.StringType }
+                            )
+                        ) { backStackEntry ->
+                            if (usuarioActual?.rol == "super_admin" || usuarioActual?.rol == "admin") {
+                                val eventoId = backStackEntry.arguments?.getString("eventoId")
+                                val eventoViewModel: EventoViewModel = viewModel()
+                                var eventoAEditar by remember { mutableStateOf<Evento?>(null) }
+
+                                LaunchedEffect(eventoId) {
+                                    if (eventoId != null) {
+                                        eventoViewModel.obtenerEventoPorId(eventoId) { evento ->
+                                            eventoAEditar = evento
+                                        }
+                                    }
+                                }
+
+                                AgregarEventoForm(eventoAEditar = eventoAEditar)
+                            } else {
+                                LaunchedEffect(Unit) {
+                                    navController.navigate("login") {
+                                        popUpTo("login") { inclusive = true }
+                                    }
+                                }
+                            }
                         }
                         composable("servicios_list") {
-                            ServiciosListScreen(
-                                onAgregarServicioClick = { navController.navigate("agregar_servicio") }
-                            )
+                            if (usuarioActual?.rol == "super_admin" || usuarioActual?.rol == "admin") {
+                                ServiciosListScreen(
+                                    onAgregarServicioClick = { navController.navigate("agregar_servicio") }
+                                )
+                            } else {
+                                LaunchedEffect(Unit) {
+                                    navController.navigate("login") {
+                                        popUpTo("login") { inclusive = true }
+                                    }
+                                }
+                            }
                         }
                         composable("agregar_servicio") {
-                            AgregarServicioForm()
+                            if (usuarioActual?.rol == "super_admin" || usuarioActual?.rol == "admin") {
+                                AgregarServicioForm()
+                            } else {
+                                LaunchedEffect(Unit) {
+                                    navController.navigate("login") {
+                                        popUpTo("login") { inclusive = true }
+                                    }
+                                }
+                            }
+                        }
+                        // Rutas protegidas - para empleados
+                        composable("empleado_home") {
+                            if (usuarioActual?.rol == "empleado") {
+                                HomeScreenEmpleado(
+                                    usuarioActual = usuarioActual!!,
+                                    onMisEventosClick = { navController.navigate("eventos_list_empleado") }
+                                )
+                            } else {
+                                LaunchedEffect(Unit) {
+                                    navController.navigate("login") {
+                                        popUpTo("login") { inclusive = true }
+                                    }
+                                }
+                            }
+                        }
+                        composable("eventos_list_empleado") {
+                            if (usuarioActual?.rol == "empleado") {
+                                val eventosEmpleado = eventos.filter { it.listaIdsEmpleados.contains(usuarioActual!!.id) }
+                                EventosEmpleadoListScreen(eventosEmpleado = eventosEmpleado, onBack = { navController.popBackStack() })
+                            } else {
+                                LaunchedEffect(Unit) {
+                                    navController.navigate("login") {
+                                        popUpTo("login") { inclusive = true }
+                                    }
+                                }
+                            }
                         }
                     }
                 }

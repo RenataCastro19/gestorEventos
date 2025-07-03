@@ -26,6 +26,9 @@ class SuperAdminViewModel : ViewModel() {
     private val _empleados = MutableStateFlow<List<Usuario>>(emptyList())
     val empleados: StateFlow<List<Usuario>> = _empleados.asStateFlow()
 
+    private val _usuarioActual = MutableStateFlow<Usuario?>(null)
+    val usuarioActual: StateFlow<Usuario?> = _usuarioActual.asStateFlow()
+
     private val _mobiliario = MutableStateFlow<List<Mobiliario>>(emptyList())
     val mobiliario: StateFlow<List<Mobiliario>> = _mobiliario.asStateFlow()
 
@@ -59,8 +62,10 @@ class SuperAdminViewModel : ViewModel() {
 
     private fun cargarEmpleados() {
         usuarioRepository.obtenerUsuarios { listaUsuarios ->
+            val usuarioActual = _usuarioActual.value
             _empleados.value = listaUsuarios.filter {
-                it.rol == "empleado" || it.rol == "admin" || it.rol == "superadmin"
+                (it.rol == "empleado" || it.rol == "admin" || it.rol == "super_admin") &&
+                        it.id != usuarioActual?.id // Excluir al usuario actual
             }
         }
     }
@@ -83,5 +88,34 @@ class SuperAdminViewModel : ViewModel() {
 
     fun actualizarDatos() {
         cargarDatos()
+    }
+
+    fun establecerUsuarioActual(usuario: Usuario) {
+        _usuarioActual.value = usuario
+        cargarEmpleados() // Recargar empleados para filtrar el usuario actual
+    }
+
+    fun inhabilitarUsuario(usuario: Usuario, onSuccess: () -> Unit, onFailure: (Exception) -> Unit) {
+        val usuarioInhabilitado = usuario.copy(estado = "inhabilitado")
+        usuarioRepository.actualizarUsuario(
+            usuario = usuarioInhabilitado,
+            onSuccess = {
+                cargarEmpleados() // Recargar la lista después de inhabilitar
+                onSuccess()
+            },
+            onFailure = onFailure
+        )
+    }
+
+    fun habilitarUsuario(usuario: Usuario, onSuccess: () -> Unit, onFailure: (Exception) -> Unit) {
+        val usuarioHabilitado = usuario.copy(estado = "activo")
+        usuarioRepository.actualizarUsuario(
+            usuario = usuarioHabilitado,
+            onSuccess = {
+                cargarEmpleados() // Recargar la lista después de habilitar
+                onSuccess()
+            },
+            onFailure = onFailure
+        )
     }
 }

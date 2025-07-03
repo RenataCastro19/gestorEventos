@@ -24,13 +24,12 @@ import com.example.gestoreventos.model.Evento
 import com.example.gestoreventos.viewmodel.SuperAdminViewModel
 import com.example.gestoreventos.viewmodel.EventoViewModel
 import com.example.gestoreventos.ui.theme.BrandGold
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.gestoreventos.view.EventosEmpleadoDialog
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.runtime.collectAsState
 
 @Composable
-fun EmpleadosListScreen(
-    onAgregarEmpleadoClick: () -> Unit = {},
+fun EmpleadosListScreenAdmin(
     viewModel: SuperAdminViewModel = viewModel()
 ) {
     val empleados by viewModel.empleados.collectAsState()
@@ -53,15 +52,6 @@ fun EmpleadosListScreen(
             modifier = Modifier.padding(bottom = 24.dp)
         )
 
-        // Botón de acción
-        EmpleadosButton(
-            text = "Agregar Empleado",
-            onClick = onAgregarEmpleadoClick,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
         // Título del listado
         Text(
             text = "Personal Registrado",
@@ -78,7 +68,7 @@ fun EmpleadosListScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             items(empleadosFiltrados) { empleado ->
-                ElegantEmpleadoItem(
+                ElegantEmpleadoItemAdmin(
                     empleado = empleado,
                     onInhabilitar = { usuario ->
                         viewModel.inhabilitarUsuario(
@@ -101,7 +91,7 @@ fun EmpleadosListScreen(
 }
 
 @Composable
-fun ElegantEmpleadoItem(
+fun ElegantEmpleadoItemAdmin(
     empleado: Usuario,
     onInhabilitar: (Usuario) -> Unit,
     onHabilitar: (Usuario) -> Unit
@@ -229,6 +219,7 @@ fun ElegantEmpleadoItem(
             }
         }
     }
+
     // Diálogo de eventos del empleado
     if (mostrarEventos) {
         EventosEmpleadoDialog(
@@ -241,40 +232,3 @@ fun ElegantEmpleadoItem(
     }
 }
 
-@Composable
-fun EmpleadosButton(
-    text: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Button(
-        onClick = onClick,
-        modifier = modifier
-            .height(60.dp)
-            .shadow(
-                elevation = 6.dp,
-                shape = RoundedCornerShape(12.dp),
-                spotColor = BrandGold.copy(alpha = 0.3f)
-            )
-            .clip(RoundedCornerShape(12.dp))
-            .border(
-                width = 2.dp,
-                color = BrandGold,
-                shape = RoundedCornerShape(12.dp)
-            ),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-            contentColor = BrandGold
-        ),
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.bodyMedium.copy(
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 13.sp
-            ),
-            maxLines = 2
-        )
-    }
-}

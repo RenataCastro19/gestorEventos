@@ -10,17 +10,39 @@ class ClienteViewModel : ViewModel() {
     fun agregarCliente(
         nombre: String,
         telefono: String,
-        onSuccess: () -> Unit,
+        onSuccess: (String) -> Unit,
         onFailure: (Exception) -> Unit
     ) {
-        val id = generateId() // Puedes usar UUID o lógica propia
-        val cliente = Cliente(id, nombre, telefono)
-        repository.agregarCliente(cliente, onSuccess, onFailure)
+        generarIdUnico { idSeguro ->
+            val cliente = Cliente(id = idSeguro, nombre = nombre, telefono = telefono)
+            repository.agregarCliente(cliente, { onSuccess(idSeguro) }, onFailure)
+        }
     }
 
     fun obtenerClientes(onResult: (List<Cliente>) -> Unit) {
         repository.obtenerClientes(onResult)
     }
 
-    private fun generateId(): String = java.util.UUID.randomUUID().toString()
+    private fun generarIdUnico(onIdGenerado: (String) -> Unit) {
+        val intentosMaximos = 20
+        var intentos = 0
+
+        fun intentar() {
+            val nuevoId = (1000..9999).random().toString()
+            repository.verificarIdDisponible(nuevoId) { disponible ->
+                if (disponible) {
+                    onIdGenerado(nuevoId)
+                } else {
+                    intentos++
+                    if (intentos < intentosMaximos) {
+                        intentar()
+                    } else {
+                        onIdGenerado((10000..99999).random().toString())
+                    }
+                }
+            }
+        }
+
+        intentar()
+    }
 }

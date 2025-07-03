@@ -74,4 +74,42 @@ class UsuarioRepository {
                 onFailure("Error al conectar con la base de datos")
             }
     }
+
+    fun verificarSuperAdminExiste(onResult: (Boolean) -> Unit) {
+        db.collection("usuarios")
+            .whereEqualTo("rol", "super_admin")
+            .limit(1)
+            .get()
+            .addOnSuccessListener { snapshot ->
+                onResult(!snapshot.isEmpty)
+            }
+            .addOnFailureListener {
+                onResult(false)
+            }
+    }
+
+    fun verificarAdminExiste(onResult: (Boolean) -> Unit) {
+        db.collection("usuarios")
+            .whereEqualTo("rol", "admin")
+            .limit(1)
+            .get()
+            .addOnSuccessListener { snapshot ->
+                onResult(!snapshot.isEmpty)
+            }
+            .addOnFailureListener {
+                onResult(false)
+            }
+    }
+
+    fun actualizarUsuario(
+        usuario: Usuario,
+        onSuccess: () -> Unit,
+        onFailure: (Exception) -> Unit
+    ) {
+        db.collection("usuarios")
+            .document(usuario.id)
+            .set(usuario)
+            .addOnSuccessListener { onSuccess() }
+            .addOnFailureListener { exception -> onFailure(exception) }
+    }
 }

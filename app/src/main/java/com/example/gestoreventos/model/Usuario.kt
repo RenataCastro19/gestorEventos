@@ -7,5 +7,6 @@ data class Usuario(
     val apellidoMaterno: String = "",
     val telefono: String = "",
     val contrasena: String = "", // Cambié "contraseña" por "contrasena" para consistencia
-    val rol: String = "empleado" // "super_admin", "admin", "empleado"
+    val rol: String = "empleado", // "super_admin", "admin", "empleado"
+    val estado: String = "activo" // "activo", "inhabilitado"
 )
