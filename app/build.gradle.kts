@@ -82,4 +82,10 @@ dependencies {
 
     // Material Icons Extended (opcional, para más iconos)
     implementation("androidx.compose.material:material-icons-extended:1.5.4")
+
+    // PDF Generation - iText
+    implementation("com.itextpdf:itext7-core:7.1.15")
+
+    // Permisos de almacenamiento
+    implementation("androidx.activity:activity-ktx:1.8.2")
 }

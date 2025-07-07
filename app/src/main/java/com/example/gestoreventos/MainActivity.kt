@@ -73,6 +73,7 @@ class MainActivity : ComponentActivity() {
                         composable("superadmin_home") {
                             if (usuarioActual?.rol == "super_admin") {
                                 HomeScreenSuperAdmin(
+                                    usuarioActual = usuarioActual!!,
                                     onMobiliarioClick = { navController.navigate("mobiliario_list") },
                                     onEmpleadosClick = { navController.navigate("empleados_list") },
                                     onEventosClick = { navController.navigate("eventos_list") },
@@ -98,6 +99,7 @@ class MainActivity : ComponentActivity() {
                         composable("admin_home") {
                             if (usuarioActual?.rol == "admin") {
                                 HomeScreenAdmin(
+                                    usuarioActual = usuarioActual!!,
                                     onMobiliarioClick = { navController.navigate("mobiliario_list") },
                                     onEmpleadosClick = { navController.navigate("empleados_list_admin") },
                                     onEventosClick = { navController.navigate("eventos_list") },
@@ -218,7 +220,8 @@ class MainActivity : ComponentActivity() {
                                     onAgregarEventoClick = { navController.navigate("agregar_evento") },
                                     onEditarEventoClick = { eventoId ->
                                         navController.navigate("editar_evento/$eventoId")
-                                    }
+                                    },
+                                    currentUser = usuarioActual
                                 )
                             } else {
                                 LaunchedEffect(Unit) {
@@ -296,7 +299,13 @@ class MainActivity : ComponentActivity() {
                             if (usuarioActual?.rol == "empleado") {
                                 HomeScreenEmpleado(
                                     usuarioActual = usuarioActual!!,
-                                    onMisEventosClick = { navController.navigate("eventos_list_empleado") }
+                                    onMisEventosClick = { navController.navigate("eventos_list_empleado") },
+                                    onLogoutClick = {
+                                        usuarioViewModel.logout()
+                                        navController.navigate("login") {
+                                            popUpTo("login") { inclusive = true }
+                                        }
+                                    }
                                 )
                             } else {
                                 LaunchedEffect(Unit) {

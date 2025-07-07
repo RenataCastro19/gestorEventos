@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.gestoreventos.model.Usuario
 import com.example.gestoreventos.ui.theme.BrandGold
 import com.example.gestoreventos.ui.theme.BrandBlack
 import com.example.gestoreventos.ui.theme.GrayLight
@@ -21,6 +22,7 @@ import com.example.gestoreventos.view.ElegantButton
 
 @Composable
 fun HomeScreenAdmin(
+    usuarioActual: Usuario,
     onMobiliarioClick: () -> Unit = {},
     onEmpleadosClick: () -> Unit = {},
     onEventosClick: () -> Unit = {},
@@ -39,6 +41,16 @@ fun HomeScreenAdmin(
             verticalArrangement = Arrangement.spacedBy(20.dp),
             modifier = Modifier.padding(32.dp)
         ) {
+            // Mensaje de bienvenida
+            Text(
+                text = "Bienvenido, ${usuarioActual.nombre}",
+                style = MaterialTheme.typography.headlineMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = BrandGold
+                ),
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+
             // Título principal
             Text(
                 text = "Gestor de Eventos",
@@ -47,14 +59,6 @@ fun HomeScreenAdmin(
                     color = BrandGold
                 ),
                 modifier = Modifier.padding(bottom = 16.dp)
-            )
-
-            Text(
-                text = "Panel de Administración",
-                style = MaterialTheme.typography.titleMedium.copy(
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
-                ),
-                modifier = Modifier.padding(bottom = 32.dp)
             )
 
             // Botones elegantes

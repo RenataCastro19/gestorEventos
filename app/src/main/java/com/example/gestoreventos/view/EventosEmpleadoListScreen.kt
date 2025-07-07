@@ -7,28 +7,34 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.gestoreventos.model.Evento
+import com.example.gestoreventos.model.Usuario
+import com.example.gestoreventos.model.Servicio
+import com.example.gestoreventos.model.Mobiliario
+import com.example.gestoreventos.model.Cliente
+import com.example.gestoreventos.model.CategoriaMobiliario
 import com.example.gestoreventos.ui.theme.BrandGold
 import com.example.gestoreventos.viewmodel.UsuarioViewModel
 import com.example.gestoreventos.viewmodel.ServicioViewModel
 import com.example.gestoreventos.viewmodel.MobiliarioViewModel
 import com.example.gestoreventos.viewmodel.ClienteViewModel
 import com.example.gestoreventos.viewmodel.CategoriaMobiliarioViewModel
-import com.example.gestoreventos.view.EventoDetallesDialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,6 +43,7 @@ fun EventosEmpleadoListScreen(
     onBack: () -> Unit
 ) {
     var eventoSeleccionado by remember { mutableStateOf<Evento?>(null) }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -132,24 +139,296 @@ fun EventosEmpleadoListScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(eventosEmpleado) { evento ->
-                        ElegantEventoItem(evento = evento, onClick = { eventoSeleccionado = evento })
+                        EventoCard(evento = evento, onClick = { eventoSeleccionado = evento })
                     }
                 }
             }
         }
     }
-    // Diálogo de detalles del evento (sin opción de editar)
+
+    // Diálogo de detalles del evento específico para empleados (sin opción de editar)
     eventoSeleccionado?.let { evento ->
         EventoDetallesDialog(
             evento = evento,
-            onDismiss = { eventoSeleccionado = null },
-            onEditar = { /* No hacer nada - empleado no puede editar */ }
+            onDismiss = { eventoSeleccionado = null }
         )
     }
 }
 
 @Composable
-fun ElegantEventoItem(evento: Evento, onClick: () -> Unit) {
+fun EventoDetallesDialog(
+    evento: Evento,
+    onDismiss: () -> Unit
+) {
+    val usuarioViewModel: UsuarioViewModel = viewModel()
+    val servicioViewModel: ServicioViewModel = viewModel()
+    val mobiliarioViewModel: MobiliarioViewModel = viewModel()
+    val clienteViewModel: ClienteViewModel = viewModel()
+    val categoriaMobiliarioViewModel: CategoriaMobiliarioViewModel = viewModel()
+
+    var empleados by remember { mutableStateOf(listOf<Usuario>()) }
+    var servicio by remember { mutableStateOf<Servicio?>(null) }
+    var mobiliarios by remember { mutableStateOf(listOf<Mobiliario>()) }
+    var cliente by remember { mutableStateOf<Cliente?>(null) }
+    var categoriasMobiliario by remember { mutableStateOf(listOf<CategoriaMobiliario>()) }
+    var clientesCargados by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        usuarioViewModel.obtenerUsuarios { listaEmpleados ->
+            empleados = listaEmpleados.filter { it.id in evento.listaIdsEmpleados }
+        }
+        servicioViewModel.obtenerServicios { listaServicios ->
+            servicio = listaServicios.find { it.id == evento.idServicio }
+        }
+        mobiliarioViewModel.obtenerMobiliario { listaMobiliarios ->
+            val idsMobiliarios = evento.idMobiliario.split(",").filter { it.isNotEmpty() }
+            mobiliarios = listaMobiliarios.filter { it.id in idsMobiliarios }
+        }
+        clienteViewModel.obtenerClientes { listaClientes ->
+            cliente = listaClientes.find { it.id == evento.idCliente }
+            clientesCargados = true
+        }
+        categoriaMobiliarioViewModel.obtenerCategorias { listaCategorias ->
+            categoriasMobiliario = listaCategorias
+        }
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            dismissOnBackPress = true,
+            dismissOnClickOutside = true
+        )
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.9f)
+                .shadow(
+                    elevation = 16.dp,
+                    shape = RoundedCornerShape(16.dp)
+                ),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            )
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp)
+            ) {
+                // Header con título y solo botón de cerrar
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Detalles del Evento",
+                        style = MaterialTheme.typography.headlineSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = BrandGold
+                        )
+                    )
+
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .size(40.dp)
+                            .background(
+                                color = MaterialTheme.colorScheme.error.copy(alpha = 0.1f),
+                                shape = RoundedCornerShape(8.dp)
+                            )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Cerrar",
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Contenido con scroll
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    // Información básica
+                    SeccionDetalles(
+                        titulo = "Información General"
+                    ) {
+                        ItemDetalle("ID del Evento", evento.id)
+                        ItemDetalle("Fecha", evento.fecha)
+                        ItemDetalle("Horario", "${evento.horaInicio} - ${evento.horaFin}")
+                        ItemDetalle("Número de Personas", "${evento.numeroPersonas} personas")
+                        ItemDetalle("Dirección del Evento", evento.direccionEvento)
+                        if (evento.detalleServicio.isNotBlank()) {
+                            ItemDetalle("Comentarios", evento.detalleServicio)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Datos del Cliente
+                    SeccionDetalles(
+                        titulo = "Datos del Cliente"
+                    ) {
+                        if (!clientesCargados) {
+                            ItemDetalle("Estado", "Cargando datos del cliente...")
+                        } else if (cliente != null) {
+                            ItemDetalle("Nombre", cliente!!.nombre)
+                            ItemDetalle("Teléfono", cliente!!.telefono)
+                            ItemDetalle("ID del Cliente", cliente!!.id)
+                        } else {
+                            ItemDetalle("Cliente", "No encontrado")
+                            ItemDetalle("ID del Cliente", evento.idCliente.ifEmpty { "Sin asignar" })
+                            ItemDetalle("Estado", "Cliente no encontrado en la base de datos")
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Servicio
+                    SeccionDetalles(
+                        titulo = "Servicio"
+                    ) {
+                        servicio?.let { serv ->
+                            ItemDetalle("Nombre", serv.nombre)
+                            ItemDetalle("Descripción", serv.descripcion)
+                            ItemDetalle("ID del Servicio", serv.id)
+                        } ?: run {
+                            ItemDetalle("Servicio", "No encontrado")
+                            ItemDetalle("ID del Servicio", evento.idServicio.ifEmpty { "Sin asignar" })
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Empleados
+                    SeccionDetalles(
+                        titulo = "Personal Asignado (${empleados.size} empleados)"
+                    ) {
+                        if (empleados.isNotEmpty()) {
+                            empleados.forEach { empleado ->
+                                ItemDetalle(
+                                    "Empleado",
+                                    "${empleado.nombre} ${empleado.apellidoPaterno} ${empleado.apellidoMaterno} - ${empleado.rol}"
+                                )
+                            }
+                        } else {
+                            ItemDetalle("Empleados", "Sin empleados asignados")
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Mobiliario
+                    SeccionDetalles(
+                        titulo = "Mobiliario Asignado (${mobiliarios.size} items)"
+                    ) {
+                        if (mobiliarios.isNotEmpty()) {
+                            mobiliarios.forEach { mobiliario ->
+                                val categoria = categoriasMobiliario.find { it.id == mobiliario.idCategoria }
+                                val nombreCategoria = categoria?.nombre ?: "Sin categoría"
+                                ItemDetalle(
+                                    "Mobiliario",
+                                    "$nombreCategoria - Color: ${mobiliario.color}"
+                                )
+                            }
+                        } else {
+                            ItemDetalle("Mobiliario", "Sin mobiliario asignado")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SeccionDetalles(
+    titulo: String,
+    contenido: @Composable () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(
+                width = 1.dp,
+                color = BrandGold.copy(alpha = 0.3f),
+                shape = RoundedCornerShape(12.dp)
+            ),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Text(
+                text = titulo,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = BrandGold
+                ),
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+            contenido()
+        }
+    }
+}
+
+@Composable
+fun ItemDetalle(
+    etiqueta: String,
+    valor: String
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+    ) {
+        Text(
+            text = "$etiqueta:",
+            style = MaterialTheme.typography.bodyMedium.copy(
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+            ),
+            modifier = Modifier.weight(0.4f)
+        )
+        Text(
+            text = valor,
+            style = MaterialTheme.typography.bodyMedium.copy(
+                fontWeight = FontWeight.Normal,
+                color = MaterialTheme.colorScheme.onSurface
+            ),
+            modifier = Modifier.weight(0.6f)
+        )
+    }
+}
+
+@Composable
+fun EventoCard(evento: Evento, onClick: () -> Unit) {
+    val servicioViewModel: ServicioViewModel = viewModel()
+    var nombreServicio by remember { mutableStateOf("") }
+
+    // Cargar el nombre del servicio
+    LaunchedEffect(evento.idServicio) {
+        if (evento.idServicio.isNotEmpty()) {
+            servicioViewModel.obtenerServicios { listaServicios ->
+                val servicio = listaServicios.find { it.id == evento.idServicio }
+                nombreServicio = servicio?.nombre ?: "Servicio no encontrado"
+            }
+        } else {
+            nombreServicio = "Sin servicio asignado"
+        }
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -172,127 +451,62 @@ fun ElegantEventoItem(evento: Evento, onClick: () -> Unit) {
         Column(
             modifier = Modifier.padding(20.dp)
         ) {
-            // Encabezado del evento
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Evento #${evento.id}",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = BrandGold
-                    )
+            // ID del evento
+            Text(
+                text = "Evento #${evento.id}",
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = BrandGold
+                ),
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+
+            // Fecha (día, mes y año)
+            Text(
+                text = evento.fecha,
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface
+                ),
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            // Hora
+            Text(
+                text = "${evento.horaInicio} - ${evento.horaFin}",
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                ),
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+
+            // Nombre del servicio
+            Text(
+                text = nombreServicio,
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
-
-                // Indicador de estado
-                Card(
-                    modifier = Modifier
-                        .border(
-                            width = 1.dp,
-                            color = BrandGold,
-                            shape = RoundedCornerShape(8.dp)
-                        ),
-                    colors = CardDefaults.cardColors(
-                        containerColor = BrandGold.copy(alpha = 0.1f)
-                    ),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text(
-                        text = "ASIGNADO",
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = BrandGold
-                        ),
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Información principal
-            Column {
-                // Fecha y hora
-                InfoSection(
-                    label = "Fecha y Hora",
-                    value = "${evento.fecha} • ${evento.horaInicio} - ${evento.horaFin}"
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Personas
-                InfoSection(
-                    label = "Número de Personas",
-                    value = "${evento.numeroPersonas} personas"
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Dirección
-                InfoSection(
-                    label = "Dirección del Evento",
-                    value = evento.direccionEvento
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // IDs adicionales
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        InfoSection(
-                            label = "Cliente ID",
-                            value = evento.idCliente.toString()
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(16.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        InfoSection(
-                            label = "Mobiliario ID",
-                            value = evento.idMobiliario.toString()
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                InfoSection(
-                    label = "Servicio ID",
-                    value = evento.idServicio.toString()
-                )
-
-                // Detalle del servicio (si existe)
-                if (evento.detalleServicio.isNotBlank()) {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    InfoSection(
-                        label = "Detalle del Servicio",
-                        value = evento.detalleServicio
-                    )
-                }
-            }
+            )
         }
     }
 }
 
 @Composable
-fun InfoSection(label: String, value: String) {
-    Text(
-        text = label,
-        style = MaterialTheme.typography.bodySmall.copy(
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+fun InformacionEvento(label: String, value: String) {
+    Column {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall.copy(
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+            )
         )
-    )
-    Text(
-        text = value,
-        style = MaterialTheme.typography.bodyLarge.copy(
-            fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onSurface
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyLarge.copy(
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
         )
-    )
+    }
 }

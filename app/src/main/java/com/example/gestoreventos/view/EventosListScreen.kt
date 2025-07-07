@@ -12,6 +12,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -37,11 +38,15 @@ import com.example.gestoreventos.viewmodel.ClienteViewModel
 import com.example.gestoreventos.viewmodel.CategoriaMobiliarioViewModel
 import com.example.gestoreventos.ui.theme.BrandGold
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.gestoreventos.utils.PdfGenerator
+import android.content.Context
+import androidx.compose.ui.platform.LocalContext
 
 @Composable
 fun EventosListScreen(
     onAgregarEventoClick: () -> Unit = {},
     onEditarEventoClick: (String) -> Unit = {},
+    currentUser: Usuario? = null,
     viewModel: SuperAdminViewModel = SuperAdminViewModel()
 ) {
     val eventos by viewModel.eventos.collectAsState()
@@ -63,12 +68,20 @@ fun EventosListScreen(
             modifier = Modifier.padding(bottom = 24.dp)
         )
 
-        // Botón de acción
-        EventosButton(
-            text = "Agregar Evento",
-            onClick = onAgregarEventoClick,
-            modifier = Modifier.fillMaxWidth()
-        )
+        // Botones de acción según rol
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Botón de agregar evento (solo para admin y super admin)
+            if (currentUser?.rol == "admin" || currentUser?.rol == "super_admin") {
+                EventosButton(
+                    text = "Agregar Evento",
+                    onClick = onAgregarEventoClick,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.height(24.dp))
 
@@ -91,7 +104,8 @@ fun EventosListScreen(
                 ElegantEventoItem(
                     evento = evento,
                     onEditarClick = onEditarEventoClick,
-                    onItemClick = { eventoSeleccionado = evento }
+                    onItemClick = { eventoSeleccionado = evento },
+                    currentUser = currentUser
                 )
             }
         }
@@ -105,7 +119,8 @@ fun EventosListScreen(
             onEditar = {
                 eventoSeleccionado = null
                 onEditarEventoClick(evento.id)
-            }
+            },
+            currentUser = currentUser
         )
     }
 }
@@ -114,7 +129,8 @@ fun EventosListScreen(
 fun ElegantEventoItem(
     evento: Evento,
     onEditarClick: (String) -> Unit,
-    onItemClick: () -> Unit
+    onItemClick: () -> Unit,
+    currentUser: Usuario? = null
 ) {
     Card(
         modifier = Modifier
@@ -155,27 +171,29 @@ fun ElegantEventoItem(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Botón de editar
-                    IconButton(
-                        onClick = { onEditarClick(evento.id) },
-                        modifier = Modifier
-                            .size(36.dp)
-                            .background(
-                                color = BrandGold.copy(alpha = 0.1f),
-                                shape = RoundedCornerShape(8.dp)
+                    // Botón de editar (solo para admin y super admin)
+                    if (currentUser?.rol == "admin" || currentUser?.rol == "super_admin") {
+                        IconButton(
+                            onClick = { onEditarClick(evento.id) },
+                            modifier = Modifier
+                                .size(36.dp)
+                                .background(
+                                    color = BrandGold.copy(alpha = 0.1f),
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                                .border(
+                                    width = 1.dp,
+                                    color = BrandGold,
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Editar evento",
+                                tint = BrandGold,
+                                modifier = Modifier.size(20.dp)
                             )
-                            .border(
-                                width = 1.dp,
-                                color = BrandGold,
-                                shape = RoundedCornerShape(8.dp)
-                            )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = "Editar evento",
-                            tint = BrandGold,
-                            modifier = Modifier.size(20.dp)
-                        )
+                        }
                     }
 
                     // Indicador de personas
@@ -278,8 +296,10 @@ fun ElegantEventoItem(
 fun EventoDetallesDialog(
     evento: Evento,
     onDismiss: () -> Unit,
-    onEditar: () -> Unit
+    onEditar: () -> Unit,
+    currentUser: Usuario? = null
 ) {
+    val context = LocalContext.current
     val usuarioViewModel: UsuarioViewModel = viewModel()
     val servicioViewModel: ServicioViewModel = viewModel()
     val mobiliarioViewModel: MobiliarioViewModel = viewModel()
@@ -363,21 +383,24 @@ fun EventoDetallesDialog(
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        IconButton(
-                            onClick = onEditar,
-                            modifier = Modifier
-                                .size(40.dp)
-                                .background(
-                                    color = BrandGold.copy(alpha = 0.1f),
-                                    shape = RoundedCornerShape(8.dp)
+                        // Botón de editar (solo para admin y super admin)
+                        if (currentUser?.rol == "admin" || currentUser?.rol == "super_admin") {
+                            IconButton(
+                                onClick = onEditar,
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .background(
+                                        color = BrandGold.copy(alpha = 0.1f),
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = "Editar",
+                                    tint = BrandGold,
+                                    modifier = Modifier.size(20.dp)
                                 )
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = "Editar",
-                                tint = BrandGold,
-                                modifier = Modifier.size(20.dp)
-                            )
+                            }
                         }
 
                         IconButton(
@@ -492,6 +515,56 @@ fun EventoDetallesDialog(
                             }
                         }
                     )
+
+                    // Botones de PDF (solo para admin y super admin)
+                    if (currentUser?.rol == "admin" || currentUser?.rol == "super_admin") {
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            // Botón PDF para Cliente
+                            EventosButton(
+                                text = "PDF Cliente",
+                                onClick = {
+                                    val pdfUri = PdfGenerator.generateClientPdf(
+                                        context = context,
+                                        evento = evento,
+                                        cliente = cliente,
+                                        servicio = servicio,
+                                        empleados = empleados,
+                                        mobiliarios = mobiliarios
+                                    )
+                                    pdfUri?.let { uri ->
+                                        val fileName = "Caruma_Cliente_Evento_${evento.id}.pdf"
+                                        PdfGenerator.sharePdf(context, uri, fileName)
+                                    }
+                                },
+                                modifier = Modifier.weight(1f)
+                            )
+
+                            // Botón PDF para Trabajadores
+                            EventosButton(
+                                text = "PDF Trabajadores",
+                                onClick = {
+                                    val pdfUri = PdfGenerator.generateWorkerPdf(
+                                        context = context,
+                                        evento = evento,
+                                        cliente = cliente,
+                                        servicio = servicio,
+                                        empleados = empleados,
+                                        mobiliarios = mobiliarios
+                                    )
+                                    pdfUri?.let { uri ->
+                                        val fileName = "Caruma_Trabajadores_Evento_${evento.id}.pdf"
+                                        PdfGenerator.sharePdf(context, uri, fileName)
+                                    }
+                                },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
                 }
             }
         }
