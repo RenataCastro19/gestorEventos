@@ -11,6 +11,17 @@ data class Evento(
     val listaIdsEmpleados: List<String> = emptyList(),
     val idMobiliario: String = "",
     val idServicio: String = "",
-    val detalleServicio: String = ""
+    val detalleServicio: String = "",
+    val serviciosSeleccionados: List<ServicioSeleccionado> = emptyList() // <-- Nuevo campo
+)
+
+data class ServicioSeleccionado(
+    val idServicio: String = "",
+    val categoriasSeleccionadas: List<CategoriaSeleccionada> = emptyList()
+)
+
+data class CategoriaSeleccionada(
+    val nombreCategoria: String = "",
+    val opcionesSeleccionadas: List<String> = emptyList()
 )
 

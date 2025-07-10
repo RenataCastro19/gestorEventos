@@ -35,15 +35,41 @@ class PdfGenerator {
         private val COLOR_DORADO = DeviceRgb(212, 175, 55) // #d4af37
         private val COLOR_GRIS_SUAVE = DeviceRgb(245, 245, 245)
 
+        // Función para formatear fecha con mes en español
+        private fun formatearFecha(fecha: String): String {
+            return try {
+                val meses = mapOf(
+                    "01" to "enero", "02" to "febrero", "03" to "marzo", "04" to "abril",
+                    "05" to "mayo", "06" to "junio", "07" to "julio", "08" to "agosto",
+                    "09" to "septiembre", "10" to "octubre", "11" to "noviembre", "12" to "diciembre"
+                )
+
+                // Asumiendo formato DD/MM/YYYY
+                val partes = fecha.split("/")
+                if (partes.size == 3) {
+                    val dia = partes[0]
+                    val mes = meses[partes[1]] ?: partes[1]
+                    val año = partes[2]
+                    "$dia de $mes de $año"
+                } else {
+                    fecha // Si no coincide el formato, devolver original
+                }
+            } catch (e: Exception) {
+                fecha // En caso de error, devolver original
+            }
+        }
+
         fun generateClientPdf(
             context: Context,
             evento: Evento,
             cliente: Cliente?,
             servicio: Servicio?,
             empleados: List<Usuario>,
-            mobiliarios: List<Mobiliario>
+            mobiliarios: List<Mobiliario>,
+            todosLosServicios: List<Servicio> = emptyList(),
+            categoriasMobiliario: List<com.example.gestoreventos.model.CategoriaMobiliario> = emptyList()
         ): Uri? {
-            return generatePdf(context, evento, cliente, servicio, empleados, mobiliarios, true)
+            return generatePdf(context, evento, cliente, servicio, empleados, mobiliarios, true, todosLosServicios, categoriasMobiliario)
         }
 
         fun generateWorkerPdf(
@@ -52,9 +78,11 @@ class PdfGenerator {
             cliente: Cliente?,
             servicio: Servicio?,
             empleados: List<Usuario>,
-            mobiliarios: List<Mobiliario>
+            mobiliarios: List<Mobiliario>,
+            todosLosServicios: List<Servicio> = emptyList(),
+            categoriasMobiliario: List<com.example.gestoreventos.model.CategoriaMobiliario> = emptyList()
         ): Uri? {
-            return generatePdf(context, evento, cliente, servicio, empleados, mobiliarios, false)
+            return generatePdf(context, evento, cliente, servicio, empleados, mobiliarios, false, todosLosServicios, categoriasMobiliario)
         }
 
         private fun generatePdf(
@@ -64,7 +92,9 @@ class PdfGenerator {
             servicio: Servicio?,
             empleados: List<Usuario>,
             mobiliarios: List<Mobiliario>,
-            isClientDocument: Boolean
+            isClientDocument: Boolean,
+            todosLosServicios: List<Servicio> = emptyList(),
+            categoriasMobiliario: List<com.example.gestoreventos.model.CategoriaMobiliario> = emptyList()
         ): Uri? {
             try {
                 // Crear archivo temporal
@@ -105,9 +135,9 @@ class PdfGenerator {
 
                 // Contenido específico según el tipo de documento
                 if (isClientDocument) {
-                    addClientContent(context, document, evento, cliente, servicio, empleados, mobiliarios)
+                    addClientContent(context, document, evento, cliente, servicio, empleados, mobiliarios, todosLosServicios, categoriasMobiliario)
                 } else {
-                    addWorkerContent(context, document, evento, cliente, servicio, empleados, mobiliarios)
+                    addWorkerContent(context, document, evento, cliente, servicio, empleados, mobiliarios, todosLosServicios, categoriasMobiliario)
                 }
 
                 // Pie de página con información de Caruma Barras
@@ -191,13 +221,6 @@ class PdfGenerator {
                 .setTextAlignment(TextAlignment.CENTER)
                 .setMarginTop(0f)
             document.add(contactInfo)
-            val dateInfo = Paragraph("Documento generado el ${SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date())}")
-                .setFontSize(9f)
-                .setFontColor(COLOR_BLANCO)
-                .setBackgroundColor(COLOR_NEGRO)
-                .setTextAlignment(TextAlignment.CENTER)
-                .setMarginTop(0f)
-            document.add(dateInfo)
         }
 
         private fun addStyledTable(document: Document, rows: List<Pair<String, String>>) {
@@ -228,24 +251,69 @@ class PdfGenerator {
             cliente: Cliente?,
             servicio: Servicio?,
             empleados: List<Usuario>,
-            mobiliarios: List<Mobiliario>
+            mobiliarios: List<Mobiliario>,
+            todosLosServicios: List<Servicio> = emptyList(),
+            categoriasMobiliario: List<com.example.gestoreventos.model.CategoriaMobiliario> = emptyList()
         ) {
             addHeader(context, document)
+
+            // Información del Cliente
+            addSectionTitle(document, "Información del Cliente")
+            addStyledTable(document, listOf(
+                "Nombre del Cliente" to (cliente?.nombre ?: "No especificado"),
+                "Dirección del Evento" to evento.direccionEvento
+            ))
+
             addSectionTitle(document, "Detalles del Evento")
             addStyledTable(document, listOf(
-                "ID del Evento" to evento.id,
-                "Fecha" to evento.fecha,
+                "Fecha" to formatearFecha(evento.fecha),
                 "Horario" to "${evento.horaInicio} - ${evento.horaFin}",
                 "Número de Personas" to "${evento.numeroPersonas} personas",
-                "Dirección" to evento.direccionEvento
+                "Costo Total del Evento" to "Por definir"
             ) + if (evento.detalleServicio.isNotBlank()) listOf("Comentarios Especiales" to evento.detalleServicio) else emptyList())
-            if (servicio != null) {
+
+            // Servicios con categorías y opciones seleccionadas
+            if (evento.serviciosSeleccionados.isNotEmpty()) {
+                addSectionTitle(document, "Servicios Contratados")
+
+                val serviciosTable = Table(2).useAllAvailableWidth()
+                serviciosTable.setWidth(UnitValue.createPercentValue(100f))
+                serviciosTable.setBorder(com.itextpdf.layout.borders.SolidBorder(COLOR_DORADO, 1f))
+
+                evento.serviciosSeleccionados.forEach { servicioSeleccionado ->
+                    // Buscar el nombre del servicio
+                    val nombreServicio = todosLosServicios.find { it.id == servicioSeleccionado.idServicio }?.nombre
+                        ?: "Servicio ${servicioSeleccionado.idServicio}"
+
+                    // Crear texto con categorías y opciones
+                    val categoriasTexto = servicioSeleccionado.categoriasSeleccionadas.joinToString("\n") { categoria ->
+                        "  - ${categoria.nombreCategoria}: ${categoria.opcionesSeleccionadas.joinToString(", ")}"
+                    }
+
+                    val servicioCell = com.itextpdf.layout.element.Cell().add(
+                        Paragraph(nombreServicio).setBold().setFontSize(12f)
+                    )
+                    val detallesCell = com.itextpdf.layout.element.Cell().add(
+                        Paragraph(categoriasTexto).setFontSize(11f)
+                    )
+
+                    servicioCell.setBorder(com.itextpdf.layout.borders.SolidBorder(COLOR_DORADO, 0.5f))
+                    detallesCell.setBorder(com.itextpdf.layout.borders.SolidBorder(COLOR_DORADO, 0.5f))
+
+                    serviciosTable.addCell(servicioCell)
+                    serviciosTable.addCell(detallesCell)
+                }
+
+                document.add(serviciosTable)
+            } else if (servicio != null) {
+                // Fallback para servicios sin categorías (formato anterior)
                 addSectionTitle(document, "Servicio Contratado")
                 addStyledTable(document, listOf(
                     "Tipo de Servicio" to servicio.nombre,
                     "Descripción" to servicio.descripcion
                 ))
             }
+
             addSectionTitle(document, "Información de Contacto")
             addStyledTable(document, listOf(
                 "Teléfonos" to "+52 2292783543 y +52 2292783713",
@@ -270,25 +338,70 @@ class PdfGenerator {
             cliente: Cliente?,
             servicio: Servicio?,
             empleados: List<Usuario>,
-            mobiliarios: List<Mobiliario>
+            mobiliarios: List<Mobiliario>,
+            todosLosServicios: List<Servicio> = emptyList(),
+            categoriasMobiliario: List<com.example.gestoreventos.model.CategoriaMobiliario> = emptyList()
         ) {
             addHeader(context, document)
+
+            // Información del Cliente
+            addSectionTitle(document, "Información del Cliente")
+            addStyledTable(document, listOf(
+                "Nombre del Cliente" to (cliente?.nombre ?: "No especificado"),
+                "Dirección del Evento" to evento.direccionEvento
+            ))
+
             addSectionTitle(document, "Información del Evento")
             addStyledTable(document, listOf(
                 "ID del Evento" to evento.id,
-                "Fecha" to evento.fecha,
+                "Fecha" to formatearFecha(evento.fecha),
                 "Horario de Trabajo" to "${evento.horaInicio} - ${evento.horaFin}",
                 "Llegada Requerida" to "30 minutos antes",
-                "Ubicación" to evento.direccionEvento,
                 "Capacidad" to "${evento.numeroPersonas} personas"
             ) + if (evento.detalleServicio.isNotBlank()) listOf("Notas Especiales" to evento.detalleServicio) else emptyList())
-            if (servicio != null) {
+
+            // Servicios con categorías y opciones seleccionadas
+            if (evento.serviciosSeleccionados.isNotEmpty()) {
+                addSectionTitle(document, "Servicios a Realizar")
+
+                val serviciosTable = Table(2).useAllAvailableWidth()
+                serviciosTable.setWidth(UnitValue.createPercentValue(100f))
+                serviciosTable.setBorder(com.itextpdf.layout.borders.SolidBorder(COLOR_DORADO, 1f))
+
+                evento.serviciosSeleccionados.forEach { servicioSeleccionado ->
+                    // Buscar el nombre del servicio
+                    val nombreServicio = todosLosServicios.find { it.id == servicioSeleccionado.idServicio }?.nombre
+                        ?: "Servicio ${servicioSeleccionado.idServicio}"
+
+                    // Crear texto con categorías y opciones
+                    val categoriasTexto = servicioSeleccionado.categoriasSeleccionadas.joinToString("\n") { categoria ->
+                        "  - ${categoria.nombreCategoria}: ${categoria.opcionesSeleccionadas.joinToString(", ")}"
+                    }
+
+                    val servicioCell = com.itextpdf.layout.element.Cell().add(
+                        Paragraph(nombreServicio).setBold().setFontSize(12f)
+                    )
+                    val detallesCell = com.itextpdf.layout.element.Cell().add(
+                        Paragraph(categoriasTexto).setFontSize(11f)
+                    )
+
+                    servicioCell.setBorder(com.itextpdf.layout.borders.SolidBorder(COLOR_DORADO, 0.5f))
+                    detallesCell.setBorder(com.itextpdf.layout.borders.SolidBorder(COLOR_DORADO, 0.5f))
+
+                    serviciosTable.addCell(servicioCell)
+                    serviciosTable.addCell(detallesCell)
+                }
+
+                document.add(serviciosTable)
+            } else if (servicio != null) {
+                // Fallback para servicios sin categorías (formato anterior)
                 addSectionTitle(document, "Servicio a Realizar")
                 addStyledTable(document, listOf(
                     "Tipo de Servicio" to servicio.nombre,
                     "Descripción" to servicio.descripcion
                 ))
             }
+
             if (empleados.isNotEmpty()) {
                 addSectionTitle(document, "Equipo de Trabajo (${empleados.size} personas)")
                 addStyledTable(document, empleados.map {
@@ -298,7 +411,9 @@ class PdfGenerator {
             if (mobiliarios.isNotEmpty()) {
                 addSectionTitle(document, "Mobiliario a Transportar (${mobiliarios.size} items)")
                 addStyledTable(document, mobiliarios.map {
-                    "Item" to "Mobiliario ${it.color}"
+                    val categoria = categoriasMobiliario.find { cat -> cat.id == it.idCategoria }
+                    val nombreCategoria = categoria?.nombre ?: "Sin categoría"
+                    "Item" to "$nombreCategoria - Color: ${it.color}"
                 })
             }
             addSectionTitle(document, "Información de Contacto")

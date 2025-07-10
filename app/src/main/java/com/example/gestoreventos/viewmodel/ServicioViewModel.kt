@@ -2,6 +2,7 @@ package com.example.gestoreventos.viewmodel
 
 import androidx.lifecycle.ViewModel
 import com.example.gestoreventos.model.Servicio
+import com.example.gestoreventos.model.CategoriaServicio
 import com.example.gestoreventos.repository.ServicioRepository
 
 class ServicioViewModel : ViewModel() {
@@ -10,7 +11,7 @@ class ServicioViewModel : ViewModel() {
     fun agregarServicio(
         nombre: String,
         descripcion: String,
-        categoriasDetalle: List<String>,
+        categorias: List<CategoriaServicio>,
         precioPorPersona: Double,
         onSuccess: () -> Unit,
         onFailure: (Exception) -> Unit
@@ -20,7 +21,7 @@ class ServicioViewModel : ViewModel() {
                 id = idSeguro,
                 nombre = nombre,
                 descripcion = descripcion,
-                categoriasDetalle = categoriasDetalle,
+                categorias = categorias,
                 precioPorPersona = precioPorPersona
             )
             repository.agregarServicio(servicio, onSuccess, onFailure)

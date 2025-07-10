@@ -168,6 +168,7 @@ fun EventoDetallesDialog(
 
     var empleados by remember { mutableStateOf(listOf<Usuario>()) }
     var servicio by remember { mutableStateOf<Servicio?>(null) }
+    var todosLosServicios by remember { mutableStateOf(listOf<Servicio>()) }
     var mobiliarios by remember { mutableStateOf(listOf<Mobiliario>()) }
     var cliente by remember { mutableStateOf<Cliente?>(null) }
     var categoriasMobiliario by remember { mutableStateOf(listOf<CategoriaMobiliario>()) }
@@ -178,6 +179,7 @@ fun EventoDetallesDialog(
             empleados = listaEmpleados.filter { it.id in evento.listaIdsEmpleados }
         }
         servicioViewModel.obtenerServicios { listaServicios ->
+            todosLosServicios = listaServicios
             servicio = listaServicios.find { it.id == evento.idServicio }
         }
         mobiliarioViewModel.obtenerMobiliario { listaMobiliarios ->
@@ -292,21 +294,47 @@ fun EventoDetallesDialog(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Servicio
-                    SeccionDetalles(
-                        titulo = "Servicio"
-                    ) {
-                        servicio?.let { serv ->
-                            ItemDetalle("Nombre", serv.nombre)
-                            ItemDetalle("Descripción", serv.descripcion)
-                            ItemDetalle("ID del Servicio", serv.id)
-                        } ?: run {
-                            ItemDetalle("Servicio", "No encontrado")
-                            ItemDetalle("ID del Servicio", evento.idServicio.ifEmpty { "Sin asignar" })
-                        }
-                    }
+                    // Servicios con categorías y opciones seleccionadas
+                    if (evento.serviciosSeleccionados.isNotEmpty()) {
+                        SeccionDetalles(
+                            titulo = "Servicios"
+                        ) {
+                            evento.serviciosSeleccionados.forEach { servicioSeleccionado ->
+                                // Buscar el servicio para obtener su nombre
+                                val nombreServicio = todosLosServicios.find { it.id == servicioSeleccionado.idServicio }?.nombre
+                                    ?: "Servicio ${servicioSeleccionado.idServicio}"
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 8.dp)
+                                ) {
+                                    Text(
+                                        text = "• $nombreServicio",
+                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        ),
+                                        modifier = Modifier.padding(bottom = 4.dp)
+                                    )
+
+                                    servicioSeleccionado.categoriasSeleccionadas.forEach { categoria ->
+                                        val opcionesTexto = categoria.opcionesSeleccionadas.joinToString(", ")
+                                        Text(
+                                            text = "  - ${categoria.nombreCategoria}: $opcionesTexto",
+                                            style = MaterialTheme.typography.bodyMedium.copy(
+                                                fontWeight = FontWeight.Normal,
+                                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                                            ),
+                                            modifier = Modifier.padding(start = 16.dp, bottom = 2.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
 
                     // Empleados
                     SeccionDetalles(

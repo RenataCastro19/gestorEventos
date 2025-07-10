@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
+import com.example.gestoreventos.model.ServicioSeleccionado
 
 class EventoViewModel : ViewModel() {
     private val repository = EventoRepository()
@@ -52,6 +53,7 @@ class EventoViewModel : ViewModel() {
         idMobiliario: String,
         idServicio: String,
         detalleServicio: String,
+        serviciosSeleccionados: List<ServicioSeleccionado> = emptyList(),
         onSuccess: () -> Unit,
         onFailure: (Exception) -> Unit
     ) {
@@ -67,7 +69,8 @@ class EventoViewModel : ViewModel() {
             listaIdsEmpleados = listaIdsEmpleados,
             idMobiliario = idMobiliario,
             idServicio = idServicio,
-            detalleServicio = detalleServicio
+            detalleServicio = detalleServicio,
+            serviciosSeleccionados = serviciosSeleccionados
         )
         agregarEvento(evento, onSuccess, onFailure)
     }

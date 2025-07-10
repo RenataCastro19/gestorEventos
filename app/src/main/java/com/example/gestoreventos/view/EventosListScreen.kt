@@ -308,6 +308,7 @@ fun EventoDetallesDialog(
 
     var empleados by remember { mutableStateOf(listOf<Usuario>()) }
     var servicio by remember { mutableStateOf<Servicio?>(null) }
+    var todosLosServicios by remember { mutableStateOf(listOf<Servicio>()) }
     var mobiliarios by remember { mutableStateOf(listOf<Mobiliario>()) }
     var cliente by remember { mutableStateOf<Cliente?>(null) }
     var categoriasMobiliario by remember { mutableStateOf(listOf<CategoriaMobiliario>()) }
@@ -318,6 +319,7 @@ fun EventoDetallesDialog(
             empleados = listaEmpleados.filter { it.id in evento.listaIdsEmpleados }
         }
         servicioViewModel.obtenerServicios { listaServicios ->
+            todosLosServicios = listaServicios
             servicio = listaServicios.find { it.id == evento.idServicio }
         }
         mobiliarioViewModel.obtenerMobiliario { listaMobiliarios ->
@@ -465,18 +467,50 @@ fun EventoDetallesDialog(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Servicio
-                    DetalleSeccion(
-                        titulo = "Servicio",
-                        contenido = {
-                            servicio?.let { serv ->
-                                DetalleItem("Nombre", serv.nombre)
-                                DetalleItem("Descripción", serv.descripcion)
-                            } ?: DetalleItem("Servicio", "No encontrado")
-                        }
-                    )
 
-                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Servicios con categorías y opciones seleccionadas
+                    if (evento.serviciosSeleccionados.isNotEmpty()) {
+                        DetalleSeccion(
+                            titulo = "Servicios",
+                            contenido = {
+                                evento.serviciosSeleccionados.forEach { servicioSeleccionado ->
+                                    // Buscar el servicio para obtener su nombre
+                                    val nombreServicio = todosLosServicios.find { it.id == servicioSeleccionado.idServicio }?.nombre
+                                        ?: "Servicio ${servicioSeleccionado.idServicio}"
+
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 8.dp)
+                                    ) {
+                                        Text(
+                                            text = "• $nombreServicio",
+                                            style = MaterialTheme.typography.bodyMedium.copy(
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            ),
+                                            modifier = Modifier.padding(bottom = 4.dp)
+                                        )
+
+                                        servicioSeleccionado.categoriasSeleccionadas.forEach { categoria ->
+                                            val opcionesTexto = categoria.opcionesSeleccionadas.joinToString(", ")
+                                            Text(
+                                                text = "  - ${categoria.nombreCategoria}: $opcionesTexto",
+                                                style = MaterialTheme.typography.bodyMedium.copy(
+                                                    fontWeight = FontWeight.Normal,
+                                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                                                ),
+                                                modifier = Modifier.padding(start = 16.dp, bottom = 2.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
 
                     // Empleados
                     DetalleSeccion(
@@ -534,7 +568,9 @@ fun EventoDetallesDialog(
                                         cliente = cliente,
                                         servicio = servicio,
                                         empleados = empleados,
-                                        mobiliarios = mobiliarios
+                                        mobiliarios = mobiliarios,
+                                        todosLosServicios = todosLosServicios,
+                                        categoriasMobiliario = categoriasMobiliario
                                     )
                                     pdfUri?.let { uri ->
                                         val fileName = "Caruma_Cliente_Evento_${evento.id}.pdf"
@@ -554,7 +590,9 @@ fun EventoDetallesDialog(
                                         cliente = cliente,
                                         servicio = servicio,
                                         empleados = empleados,
-                                        mobiliarios = mobiliarios
+                                        mobiliarios = mobiliarios,
+                                        todosLosServicios = todosLosServicios,
+                                        categoriasMobiliario = categoriasMobiliario
                                     )
                                     pdfUri?.let { uri ->
                                         val fileName = "Caruma_Trabajadores_Evento_${evento.id}.pdf"

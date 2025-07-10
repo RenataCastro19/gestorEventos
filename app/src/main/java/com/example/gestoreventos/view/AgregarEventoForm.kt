@@ -67,6 +67,9 @@ fun AgregarEventoForm(
 
     var serviciosSeleccionados = remember { mutableStateListOf<Servicio>() }
 
+    // Estado para la selección de opciones por servicio/categoría
+    var seleccionServiciosCategorias by remember { mutableStateOf<Map<String, MutableMap<String, MutableSet<String>>>>(mutableMapOf()) }
+
     val empleadosActivos = usuarios.filter { it.estado == "activo" }
     val mobiliariosActivos = mobiliarios.filter { it.estado == "activo" }
     val serviciosActivos = servicios.filter { it.estado == "activo" }
@@ -109,6 +112,19 @@ fun AgregarEventoForm(
                 nombreCliente = clienteEvento.nombre
                 telefonoCliente = clienteEvento.telefono
             }
+
+            // Precargar selección de servicios y categorías
+            val precarga = mutableMapOf<String, MutableMap<String, MutableSet<String>>>()
+            eventoAEditar.serviciosSeleccionados.forEach { servicioSeleccionado ->
+                precarga[servicioSeleccionado.idServicio] = mutableMapOf()
+                servicioSeleccionado.categoriasSeleccionadas.forEach { categoriaSeleccionada ->
+                    precarga[servicioSeleccionado.idServicio]?.put(
+                        categoriaSeleccionada.nombreCategoria,
+                        categoriaSeleccionada.opcionesSeleccionadas.toMutableSet()
+                    )
+                }
+            }
+            seleccionServiciosCategorias = precarga
             precargado = true
         }
     }
@@ -254,6 +270,15 @@ fun AgregarEventoForm(
 
         Spacer(modifier = Modifier.height(8.dp))
 
+        OutlinedTextField(
+            value = direccionEvento,
+            onValueChange = { direccionEvento = it },
+            label = { Text("Dirección del evento") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
         // Teléfono limitado a 10 dígitos
         OutlinedTextField(
             value = telefonoCliente,
@@ -282,8 +307,24 @@ fun AgregarEventoForm(
                             .toggleable(
                                 value = isSelected,
                                 onValueChange = { checked ->
-                                    if (checked) serviciosSeleccionados.add(servicio)
-                                    else serviciosSeleccionados.remove(servicio)
+                                    if (checked) {
+                                        serviciosSeleccionados.add(servicio)
+                                        // Inicializar estructura de selección si no existe
+                                        if (seleccionServiciosCategorias[servicio.id] == null) {
+                                            val catMap = mutableMapOf<String, MutableSet<String>>()
+                                            servicio.categorias.forEach { cat ->
+                                                catMap[cat.nombre] = mutableSetOf()
+                                            }
+                                            val nuevoMapa = seleccionServiciosCategorias.toMutableMap()
+                                            nuevoMapa[servicio.id] = catMap
+                                            seleccionServiciosCategorias = nuevoMapa
+                                        }
+                                    } else {
+                                        serviciosSeleccionados.remove(servicio)
+                                        val nuevoMapa = seleccionServiciosCategorias.toMutableMap()
+                                        nuevoMapa.remove(servicio.id)
+                                        seleccionServiciosCategorias = nuevoMapa
+                                    }
                                 }
                             )
                             .padding(vertical = 4.dp),
@@ -295,6 +336,44 @@ fun AgregarEventoForm(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(servicio.nombre)
+                    }
+                    // Mostrar categorías y opciones con checkboxes si está seleccionado
+                    if (isSelected) {
+                        servicio.categorias.forEach { categoria ->
+                            Text(
+                                text = categoria.nombre,
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.padding(start = 32.dp, top = 8.dp)
+                            )
+                            categoria.opciones.forEach { opcion ->
+                                val checked = seleccionServiciosCategorias[servicio.id]?.get(categoria.nombre)?.contains(opcion) == true
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(start = 48.dp), // Quitar .toggleable
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Checkbox(
+                                        checked = checked,
+                                        onCheckedChange = { isChecked ->
+                                            val nuevoMapa = seleccionServiciosCategorias.toMutableMap()
+                                            val catMap = (nuevoMapa[servicio.id]?.toMutableMap() ?: mutableMapOf())
+                                            val opcionesSet = (catMap[categoria.nombre]?.toMutableSet() ?: mutableSetOf())
+                                            if (isChecked) {
+                                                opcionesSet.add(opcion)
+                                            } else {
+                                                opcionesSet.remove(opcion)
+                                            }
+                                            catMap[categoria.nombre] = opcionesSet
+                                            nuevoMapa[servicio.id] = catMap
+                                            seleccionServiciosCategorias = nuevoMapa // Forzar recomposición
+                                        }
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(opcion)
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -367,15 +446,6 @@ fun AgregarEventoForm(
         Spacer(modifier = Modifier.height(8.dp))
 
         OutlinedTextField(
-            value = direccionEvento,
-            onValueChange = { direccionEvento = it },
-            label = { Text("Dirección del evento") },
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        OutlinedTextField(
             value = detalleServicio,
             onValueChange = { detalleServicio = it },
             label = { Text("Detalles / observaciones") },
@@ -398,6 +468,18 @@ fun AgregarEventoForm(
                     return@Button
                 }
                 val idsServicios = serviciosSeleccionados.joinToString(",") { it.id }
+                // Construir la estructura para serviciosSeleccionados
+                val serviciosSeleccionadosEvento = serviciosSeleccionados.map { servicio ->
+                    ServicioSeleccionado(
+                        idServicio = servicio.id,
+                        categoriasSeleccionadas = servicio.categorias.map { categoria ->
+                            CategoriaSeleccionada(
+                                nombreCategoria = categoria.nombre,
+                                opcionesSeleccionadas = seleccionServiciosCategorias[servicio.id]?.get(categoria.nombre)?.toList() ?: emptyList()
+                            )
+                        }
+                    )
+                }
                 if (eventoAEditar != null) {
                     // Actualizar evento existente
                     val clienteExistente = clientes.find { it.nombre == nombreCliente.trim() && it.telefono == telefonoCliente.trim() }
@@ -412,7 +494,8 @@ fun AgregarEventoForm(
                         idMobiliario = mobiliariosSeleccionados.joinToString(",") { it.id },
                         idServicio = idsServicios,
                         detalleServicio = detalleServicio,
-                        idCliente = idClienteFinal
+                        idCliente = idClienteFinal,
+                        serviciosSeleccionados = serviciosSeleccionadosEvento
                     )
                     eventoViewModel.actualizarEvento(
                         eventoActualizado,
@@ -441,6 +524,7 @@ fun AgregarEventoForm(
                             idMobiliario = mobiliariosSeleccionados.joinToString(",") { it.id },
                             idServicio = idsServicios,
                             detalleServicio = detalleServicio,
+                            serviciosSeleccionados = serviciosSeleccionadosEvento, // <-- nuevo campo
                             onSuccess = {
                                 coroutineScope.launch {
                                     snackbarHostState.showSnackbar("Evento agregado correctamente")
@@ -480,6 +564,7 @@ fun AgregarEventoForm(
                                     idMobiliario = mobiliariosSeleccionados.joinToString(",") { it.id },
                                     idServicio = idsServicios,
                                     detalleServicio = detalleServicio,
+                                    serviciosSeleccionados = serviciosSeleccionadosEvento, // <-- nuevo campo
                                     onSuccess = {
                                         coroutineScope.launch {
                                             snackbarHostState.showSnackbar("Evento agregado correctamente")
