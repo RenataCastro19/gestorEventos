@@ -221,6 +221,7 @@ class MainActivity : ComponentActivity() {
                                     onEditarEventoClick = { eventoId ->
                                         navController.navigate("editar_evento/$eventoId")
                                     },
+                                    onCalendarioClick = { navController.navigate("calendario") },
                                     currentUser = usuarioActual
                                 )
                             } else {
@@ -294,6 +295,11 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                         }
+
+                        // Ruta del calendario - accesible para todos los roles
+                        composable("calendario") {
+                            CalendarioScreen()
+                        }
                         // Rutas protegidas - para empleados
                         composable("empleado_home") {
                             if (usuarioActual?.rol == "empleado") {
@@ -318,7 +324,12 @@ class MainActivity : ComponentActivity() {
                         composable("eventos_list_empleado") {
                             if (usuarioActual?.rol == "empleado") {
                                 val eventosEmpleado = eventos.filter { it.listaIdsEmpleados.contains(usuarioActual!!.id) }
-                                EventosEmpleadoListScreen(eventosEmpleado = eventosEmpleado, onBack = { navController.popBackStack() })
+                                EventosEmpleadoListScreen(
+                                    eventosEmpleado = eventosEmpleado,
+                                    usuarioActual = usuarioActual!!,
+                                    onBack = { navController.popBackStack() },
+                                    onCalendarioClick = { navController.navigate("calendario") }
+                                )
                             } else {
                                 LaunchedEffect(Unit) {
                                     navController.navigate("login") {

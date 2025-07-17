@@ -11,6 +11,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
@@ -35,14 +36,37 @@ import com.example.gestoreventos.viewmodel.ServicioViewModel
 import com.example.gestoreventos.viewmodel.MobiliarioViewModel
 import com.example.gestoreventos.viewmodel.ClienteViewModel
 import com.example.gestoreventos.viewmodel.CategoriaMobiliarioViewModel
+import com.example.gestoreventos.viewmodel.EventoViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EventosEmpleadoListScreen(
     eventosEmpleado: List<Evento>,
-    onBack: () -> Unit
+    usuarioActual: Usuario,
+    onBack: () -> Unit,
+    onCalendarioClick: () -> Unit = {}
 ) {
     var eventoSeleccionado by remember { mutableStateOf<Evento?>(null) }
+    val eventoViewModel: EventoViewModel = viewModel()
+    var eventos by remember { mutableStateOf(listOf<Evento>()) }
+    var eventosEmpleadoActual by remember { mutableStateOf(listOf<Evento>()) }
+
+    LaunchedEffect(Unit) {
+        eventoViewModel.obtenerEventos { listaEventos ->
+            eventos = listaEventos
+            println("DEBUG: Se cargaron ${listaEventos.size} eventos")
+        }
+    }
+
+    LaunchedEffect(eventos, usuarioActual) {
+        println("DEBUG: Usuario actual: ${usuarioActual.id} - ${usuarioActual.nombre}")
+        println("DEBUG: Total de eventos: ${eventos.size}")
+        eventos.forEach { evento ->
+            println("DEBUG: Evento ${evento.id} - Empleados: ${evento.listaIdsEmpleados}")
+        }
+        eventosEmpleadoActual = eventos.filter { it.listaIdsEmpleados.contains(usuarioActual.id) }
+        println("DEBUG: Eventos filtrados para empleado: ${eventosEmpleadoActual.size}")
+    }
 
     Scaffold(
         topBar = {
@@ -76,10 +100,32 @@ fun EventosEmpleadoListScreen(
                     fontWeight = FontWeight.Bold,
                     color = BrandGold
                 ),
-                modifier = Modifier.padding(bottom = 24.dp)
+                modifier = Modifier.padding(bottom = 16.dp)
             )
 
-            if (eventosEmpleado.isEmpty()) {
+            // Botón de calendario
+            Button(
+                onClick = onCalendarioClick,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = BrandGold
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text(
+                    text = "Ver Calendario",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Medium,
+                        color = androidx.compose.ui.graphics.Color.White
+                    )
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (eventosEmpleadoActual.isEmpty()) {
                 // Estado vacío elegante
                 Box(
                     modifier = Modifier
@@ -129,6 +175,21 @@ fun EventosEmpleadoListScreen(
                                 style = MaterialTheme.typography.bodyMedium,
                                 textAlign = TextAlign.Center
                             )
+
+                            // Información de depuración
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "DEBUG: Usuario: ${usuarioActual.id}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                textAlign = TextAlign.Center
+                            )
+                            Text(
+                                text = "DEBUG: Total eventos: ${eventos.size}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                textAlign = TextAlign.Center
+                            )
                         }
                     }
                 }
@@ -138,7 +199,7 @@ fun EventosEmpleadoListScreen(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(eventosEmpleado) { evento ->
+                    items(eventosEmpleadoActual) { evento ->
                         EventoCard(evento = evento, onClick = { eventoSeleccionado = evento })
                     }
                 }

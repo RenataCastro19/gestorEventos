@@ -13,13 +13,18 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -39,18 +44,62 @@ import com.example.gestoreventos.viewmodel.CategoriaMobiliarioViewModel
 import com.example.gestoreventos.ui.theme.BrandGold
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.gestoreventos.utils.PdfGenerator
+import com.example.gestoreventos.utils.DateUtils
 import android.content.Context
 import androidx.compose.ui.platform.LocalContext
+import java.util.*
 
 @Composable
 fun EventosListScreen(
     onAgregarEventoClick: () -> Unit = {},
     onEditarEventoClick: (String) -> Unit = {},
+    onCalendarioClick: () -> Unit = {},
     currentUser: Usuario? = null,
     viewModel: SuperAdminViewModel = SuperAdminViewModel()
 ) {
     val eventos by viewModel.eventos.collectAsState()
     var eventoSeleccionado by remember { mutableStateOf<Evento?>(null) }
+
+    // Estado para el filtro
+    var filtroExpandido by remember { mutableStateOf(false) }
+    var filtroSeleccionado by remember { mutableStateOf("Todos los Eventos") }
+    val currentUserId = remember(currentUser) { currentUser?.id }
+
+    // Estado mutable para eventos filtrados - SIN PARPADEO
+    var eventosFiltrados by remember { mutableStateOf(listOf<Evento>()) }
+
+    // Función para actualizar eventos filtrados
+    fun actualizarEventosFiltrados() {
+        eventosFiltrados = when (filtroSeleccionado) {
+            "Mis Eventos" -> {
+                if (currentUserId != null) {
+                    eventos.filter { evento ->
+                        !DateUtils.isEventoPasado(evento) &&
+                                evento.listaIdsEmpleados.contains(currentUserId)
+                    }
+                } else {
+                    emptyList()
+                }
+            }
+            "Eventos Pasados" -> eventos.filter { DateUtils.isEventoPasado(it) }
+            else -> eventos.filter { !DateUtils.isEventoPasado(it) } // "Todos los Eventos"
+        }
+    }
+
+    // Actualizar solo cuando cambie el filtro
+    LaunchedEffect(filtroSeleccionado) {
+        actualizarEventosFiltrados()
+    }
+
+    // Actualizar cuando cambien los eventos (pero no inmediatamente)
+    LaunchedEffect(eventos) {
+        actualizarEventosFiltrados()
+    }
+
+    // Inicializar eventos filtrados al cargar
+    LaunchedEffect(Unit) {
+        actualizarEventosFiltrados()
+    }
 
     Column(
         modifier = Modifier
@@ -69,25 +118,126 @@ fun EventosListScreen(
         )
 
         // Botones de acción según rol
-        Row(
+        Column(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // Botón de agregar evento (solo para admin y super admin)
             if (currentUser?.rol == "admin" || currentUser?.rol == "super_admin") {
                 EventosButton(
                     text = "Agregar Evento",
                     onClick = onAgregarEventoClick,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.fillMaxWidth()
                 )
+            }
+
+            // Botón de calendario (para todos los roles)
+            EventosButton(
+                text = "Calendario",
+                onClick = onCalendarioClick,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Filtro de eventos
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Text(
+                    text = "Filtrar Eventos",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = BrandGold
+                    ),
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+
+                // Dropdown del filtro
+                Box {
+                    OutlinedButton(
+                        onClick = { filtroExpandido = !filtroExpandido },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = MaterialTheme.colorScheme.surface
+                        ),
+                        border = BorderStroke(1.dp, BrandGold)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = filtroSeleccionado,
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    color = BrandGold,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            )
+                            Icon(
+                                imageVector = if (filtroExpandido) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                contentDescription = "Expandir filtro",
+                                tint = BrandGold
+                            )
+                        }
+                    }
+
+                    // Opciones del dropdown
+                    if (filtroExpandido) {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 4.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surface
+                            ),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                        ) {
+                            Column {
+                                listOf("Todos los Eventos", "Mis Eventos", "Eventos Pasados").forEach { opcion ->
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable {
+                                                filtroSeleccionado = opcion
+                                                filtroExpandido = false
+                                            }
+                                            .padding(16.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = opcion,
+                                            style = MaterialTheme.typography.bodyMedium.copy(
+                                                color = if (filtroSeleccionado == opcion) BrandGold else MaterialTheme.colorScheme.onSurface,
+                                                fontWeight = if (filtroSeleccionado == opcion) FontWeight.Bold else FontWeight.Normal
+                                            )
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Título del listado
+        // Título del listado dinámico
         Text(
-            text = "Eventos Programados",
+            text = when (filtroSeleccionado) {
+                "Eventos Pasados" -> "Eventos Pasados"
+                else -> "Eventos Programados"
+            },
             style = MaterialTheme.typography.titleLarge.copy(
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onBackground
@@ -100,12 +250,16 @@ fun EventosListScreen(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            items(eventos) { evento ->
+            items(
+                items = eventosFiltrados,
+                key = { evento -> evento.id } // ← AGREGAR ESTA LÍNEA
+            ) { evento ->
                 ElegantEventoItem(
                     evento = evento,
                     onEditarClick = onEditarEventoClick,
                     onItemClick = { eventoSeleccionado = evento },
-                    currentUser = currentUser
+                    currentUser = currentUser,
+                    isEventoPasado = DateUtils.isEventoPasado(evento)
                 )
             }
         }
@@ -130,7 +284,8 @@ fun ElegantEventoItem(
     evento: Evento,
     onEditarClick: (String) -> Unit,
     onItemClick: () -> Unit,
-    currentUser: Usuario? = null
+    currentUser: Usuario? = null,
+    isEventoPasado: Boolean = false
 ) {
     Card(
         modifier = Modifier
@@ -139,16 +294,25 @@ fun ElegantEventoItem(
             .shadow(
                 elevation = 6.dp,
                 shape = RoundedCornerShape(16.dp),
-                spotColor = BrandGold.copy(alpha = 0.2f)
+                spotColor = if (isEventoPasado)
+                    MaterialTheme.colorScheme.error.copy(alpha = 0.2f)
+                else
+                    BrandGold.copy(alpha = 0.2f)
             )
             .border(
                 width = 1.dp,
-                color = BrandGold.copy(alpha = 0.3f),
+                color = if (isEventoPasado)
+                    MaterialTheme.colorScheme.error.copy(alpha = 0.3f)
+                else
+                    BrandGold.copy(alpha = 0.3f),
                 shape = RoundedCornerShape(16.dp)
             ),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = if (isEventoPasado)
+                MaterialTheme.colorScheme.error.copy(alpha = 0.05f)
+            else
+                MaterialTheme.colorScheme.surface
         )
     ) {
         Column(
@@ -159,20 +323,47 @@ fun ElegantEventoItem(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "ID: ${evento.id}",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = BrandGold
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "ID: ${evento.id}",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = if (isEventoPasado)
+                                MaterialTheme.colorScheme.error
+                            else
+                                BrandGold
+                        )
                     )
-                )
+
+                    // Indicador de evento pasado
+                    if (isEventoPasado) {
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.1f)
+                            ),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(
+                                text = "PASADO",
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.error
+                                ),
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                }
 
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Botón de editar (solo para admin y super admin)
-                    if (currentUser?.rol == "admin" || currentUser?.rol == "super_admin") {
+                    // Botón de editar (solo para admin y super admin, y solo para eventos futuros)
+                    if ((currentUser?.rol == "admin" || currentUser?.rol == "super_admin") && !isEventoPasado) {
                         IconButton(
                             onClick = { onEditarClick(evento.id) },
                             modifier = Modifier
@@ -201,11 +392,17 @@ fun ElegantEventoItem(
                         modifier = Modifier
                             .border(
                                 width = 1.dp,
-                                color = BrandGold,
+                                color = if (isEventoPasado)
+                                    MaterialTheme.colorScheme.error
+                                else
+                                    BrandGold,
                                 shape = RoundedCornerShape(8.dp)
                             ),
                         colors = CardDefaults.cardColors(
-                            containerColor = BrandGold.copy(alpha = 0.1f)
+                            containerColor = if (isEventoPasado)
+                                MaterialTheme.colorScheme.error.copy(alpha = 0.1f)
+                            else
+                                BrandGold.copy(alpha = 0.1f)
                         ),
                         shape = RoundedCornerShape(8.dp)
                     ) {
@@ -213,7 +410,10 @@ fun ElegantEventoItem(
                             text = "${evento.numeroPersonas} personas",
                             style = MaterialTheme.typography.bodySmall.copy(
                                 fontWeight = FontWeight.Bold,
-                                color = BrandGold
+                                color = if (isEventoPasado)
+                                    MaterialTheme.colorScheme.error
+                                else
+                                    BrandGold
                             ),
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                         )
@@ -238,7 +438,11 @@ fun ElegantEventoItem(
                     Text(
                         text = evento.fecha,
                         style = MaterialTheme.typography.bodyLarge.copy(
-                            fontWeight = FontWeight.Medium
+                            fontWeight = FontWeight.Medium,
+                            color = if (isEventoPasado)
+                                MaterialTheme.colorScheme.error
+                            else
+                                MaterialTheme.colorScheme.onSurface
                         )
                     )
                     Text(
@@ -250,7 +454,11 @@ fun ElegantEventoItem(
                     Text(
                         text = "${evento.horaInicio} - ${evento.horaFin}",
                         style = MaterialTheme.typography.bodyLarge.copy(
-                            fontWeight = FontWeight.Medium
+                            fontWeight = FontWeight.Medium,
+                            color = if (isEventoPasado)
+                                MaterialTheme.colorScheme.error
+                            else
+                                MaterialTheme.colorScheme.onSurface
                         )
                     )
                 }
