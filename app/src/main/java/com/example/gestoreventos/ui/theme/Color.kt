@@ -16,7 +16,7 @@ val BlackLight = Color(0xFF1A1A1A)
 val BlackMedium = Color(0xFF333333)
 
 // Grises elegantes
-val GrayLight = Color(0xFFF5F5F5)
+val GrayLight = Color(0xFF000000)
 val GrayMedium = Color(0xFFE0E0E0)
 val GrayDark = Color(0xFF757575)
 

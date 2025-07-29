@@ -7,9 +7,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.util.UUID
+import com.google.firebase.auth.FirebaseAuth
 
 class UsuarioViewModel : ViewModel() {
     private val repository = UsuarioRepository()
+    private val auth = FirebaseAuth.getInstance()
 
     // Estado del usuario actual
     private val _usuarioActual = MutableStateFlow<Usuario?>(null)
@@ -46,7 +48,31 @@ class UsuarioViewModel : ViewModel() {
         repository.obtenerUsuarioPorId(id, onResult)
     }
 
-    // Nueva función para login
+    // Nuevo registro de usuario usando FirebaseAuth
+    fun registrarUsuarioConAuth(
+        id: String,
+        nombre: String,
+        apellidoPaterno: String,
+        apellidoMaterno: String,
+        telefono: String,
+        contrasena: String,
+        rol: String = "empleado",
+        onSuccess: () -> Unit,
+        onFailure: (Exception) -> Unit
+    ) {
+        val email = "$id@miapp.com"
+        auth.createUserWithEmailAndPassword(email, contrasena)
+            .addOnSuccessListener {
+                // Si se crea en Auth, lo guardamos en Firestore
+                val usuario = Usuario(id, nombre, apellidoPaterno, apellidoMaterno, telefono, contrasena, rol)
+                repository.agregarUsuario(usuario, onSuccess, onFailure)
+            }
+            .addOnFailureListener { e ->
+                onFailure(e)
+            }
+    }
+
+    // Nuevo login usando FirebaseAuth con ID y contraseña
     fun login(
         id: String,
         contrasena: String,
@@ -54,19 +80,24 @@ class UsuarioViewModel : ViewModel() {
         onFailure: (String) -> Unit
     ) {
         _isLoading.value = true
-        repository.login(
-            id = id,
-            contrasena = contrasena,
-            onSuccess = { usuario ->
-                _usuarioActual.value = usuario
-                _isLoading.value = false
-                onSuccess(usuario)
-            },
-            onFailure = { error ->
-                _isLoading.value = false
-                onFailure(error)
+        val email = "$id@miapp.com"
+        auth.signInWithEmailAndPassword(email, contrasena)
+            .addOnSuccessListener { authResult ->
+                // Buscar datos del usuario en Firestore por ID
+                repository.obtenerUsuarioPorId(id) { usuario ->
+                    _isLoading.value = false
+                    if (usuario != null) {
+                        _usuarioActual.value = usuario
+                        onSuccess(usuario)
+                    } else {
+                        onFailure("Usuario no encontrado en Firestore")
+                    }
+                }
             }
-        )
+            .addOnFailureListener { e ->
+                _isLoading.value = false
+                onFailure("ID o contraseña incorrectos")
+            }
     }
 
     fun logout() {
@@ -106,51 +137,5 @@ class UsuarioViewModel : ViewModel() {
             onSuccess = onSuccess,
             onFailure = onFailure
         )
-    }
-
-    fun crearSuperAdminPorDefecto() {
-        // Verificar si ya existe un super admin
-        repository.verificarSuperAdminExiste { existe ->
-            if (!existe) {
-                // Crear super admin por defecto
-                agregarUsuario(
-                    id = "0001",
-                    nombre = "Super",
-                    apellidoPaterno = "Admin",
-                    apellidoMaterno = "",
-                    telefono = "0000000000",
-                    contrasena = "admin123",
-                    rol = "super_admin",
-                    onSuccess = {
-                        println("Super admin creado exitosamente")
-                    },
-                    onFailure = { exception ->
-                        println("Error al crear super admin: ${exception.message}")
-                    }
-                )
-            }
-        }
-
-        // Verificar si ya existe un admin
-        repository.verificarAdminExiste { existe ->
-            if (!existe) {
-                // Crear admin por defecto
-                agregarUsuario(
-                    id = "0002",
-                    nombre = "Admin",
-                    apellidoPaterno = "User",
-                    apellidoMaterno = "",
-                    telefono = "0000000000",
-                    contrasena = "admin123",
-                    rol = "admin",
-                    onSuccess = {
-                        println("Admin creado exitosamente")
-                    },
-                    onFailure = { exception ->
-                        println("Error al crear admin: ${exception.message}")
-                    }
-                )
-            }
-        }
     }
 }

@@ -113,7 +113,10 @@ fun RegistroUsuarioScreen(usuarioViewModel: UsuarioViewModel = viewModel()) {
                 return@Button
             }
 
-            usuarioViewModel.agregarUsuarioAutoId(
+            // Genera un ID aleatorio de 4 dígitos
+            val id = (1000..9999).random().toString()
+            usuarioViewModel.registrarUsuarioConAuth(
+                id = id,
                 nombre = nombre,
                 apellidoPaterno = apellidoPaterno,
                 apellidoMaterno = apellidoMaterno,

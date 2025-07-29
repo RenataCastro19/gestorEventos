@@ -88,4 +88,5 @@ dependencies {
 
     // Permisos de almacenamiento
     implementation("androidx.activity:activity-ktx:1.8.2")
+    implementation("com.google.firebase:firebase-auth-ktx")
 }

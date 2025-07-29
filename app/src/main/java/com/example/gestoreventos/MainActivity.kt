@@ -30,6 +30,21 @@ import androidx.compose.runtime.collectAsState
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // BLOQUE TEMPORAL: Crear superadmin en FirebaseAuth
+        val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
+        val email = "6933@miapp.com"
+        val password = "caruma"
+        auth.createUserWithEmailAndPassword(email, password)
+            .addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    println("Superadmin creado en FirebaseAuth")
+                } else {
+                    println("Error al crear superadmin: ${task.exception?.message}")
+                }
+            }
+        // FIN BLOQUE TEMPORAL
+
         enableEdgeToEdge()
         setContent {
             GestorEventosTheme {
@@ -38,11 +53,6 @@ class MainActivity : ComponentActivity() {
                 val usuarioActual by usuarioViewModel.usuarioActual.collectAsState()
                 val eventoViewModel: EventoViewModel = viewModel()
                 val eventos by eventoViewModel.eventos.collectAsState()
-
-                // Crear super admin por defecto si no existe
-                LaunchedEffect(Unit) {
-                    usuarioViewModel.crearSuperAdminPorDefecto()
-                }
 
                 // Redirección automática tras login según rol
                 LaunchedEffect(usuarioActual) {
@@ -343,4 +353,6 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+
 }
