@@ -54,7 +54,7 @@ class SuperAdminViewModel : ViewModel() {
         _isLoading.value = false
     }
 
-    private fun cargarEventos() {
+    fun cargarEventos() {
         eventoRepository.obtenerEventos { listaEventos ->
             _eventos.value = listaEventos.sortedBy { it.fecha }
         }

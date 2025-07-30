@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.util.UUID
 import com.google.firebase.auth.FirebaseAuth
+import android.util.Log
 
 class UsuarioViewModel : ViewModel() {
     private val repository = UsuarioRepository()
@@ -61,6 +62,7 @@ class UsuarioViewModel : ViewModel() {
         onFailure: (Exception) -> Unit
     ) {
         val email = "$id@miapp.com"
+
         auth.createUserWithEmailAndPassword(email, contrasena)
             .addOnSuccessListener {
                 // Si se crea en Auth, lo guardamos en Firestore

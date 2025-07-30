@@ -58,47 +58,44 @@ fun EventosListScreen(
     viewModel: SuperAdminViewModel = SuperAdminViewModel()
 ) {
     val eventos by viewModel.eventos.collectAsState()
+
+    // Cargar eventos cuando se inicie la pantalla
+    LaunchedEffect(Unit) {
+        viewModel.cargarEventos()
+    }
     var eventoSeleccionado by remember { mutableStateOf<Evento?>(null) }
 
     // Estado para el filtro
     var filtroExpandido by remember { mutableStateOf(false) }
     var filtroSeleccionado by remember { mutableStateOf("Todos los Eventos") }
-    val currentUserId = remember(currentUser) { currentUser?.id }
+    val currentUserId = currentUser?.id
 
-    // Estado mutable para eventos filtrados - SIN PARPADEO
-    var eventosFiltrados by remember { mutableStateOf(listOf<Evento>()) }
-
-    // Función para actualizar eventos filtrados
-    fun actualizarEventosFiltrados() {
-        eventosFiltrados = when (filtroSeleccionado) {
-            "Mis Eventos" -> {
-                if (currentUserId != null) {
-                    eventos.filter { evento ->
-                        !DateUtils.isEventoPasado(evento) &&
-                                evento.listaIdsEmpleados.contains(currentUserId)
+    // Calcular eventos filtrados directamente - SIN PARPADEO
+    val eventosFiltrados = remember(eventos, filtroSeleccionado, currentUserId, currentUser?.rol) {
+        if (eventos.isEmpty()) {
+            emptyList()
+        } else {
+            when (filtroSeleccionado) {
+                "Mis Eventos" -> {
+                    if (currentUserId != null) {
+                        // Para admin y super_admin: mostrar todos los eventos futuros
+                        // Para empleados: mostrar solo eventos donde están asignados
+                        if (currentUser?.rol == "admin" || currentUser?.rol == "super_admin") {
+                            eventos.filter { !DateUtils.isEventoPasado(it) }
+                        } else {
+                            eventos.filter { evento ->
+                                !DateUtils.isEventoPasado(evento) &&
+                                        evento.listaIdsEmpleados.contains(currentUserId)
+                            }
+                        }
+                    } else {
+                        emptyList()
                     }
-                } else {
-                    emptyList()
                 }
+                "Eventos Pasados" -> eventos.filter { DateUtils.isEventoPasado(it) }
+                else -> eventos.filter { !DateUtils.isEventoPasado(it) } // "Todos los Eventos"
             }
-            "Eventos Pasados" -> eventos.filter { DateUtils.isEventoPasado(it) }
-            else -> eventos.filter { !DateUtils.isEventoPasado(it) } // "Todos los Eventos"
         }
-    }
-
-    // Actualizar solo cuando cambie el filtro
-    LaunchedEffect(filtroSeleccionado) {
-        actualizarEventosFiltrados()
-    }
-
-    // Actualizar cuando cambien los eventos (pero no inmediatamente)
-    LaunchedEffect(eventos) {
-        actualizarEventosFiltrados()
-    }
-
-    // Inicializar eventos filtrados al cargar
-    LaunchedEffect(Unit) {
-        actualizarEventosFiltrados()
     }
 
     Column(

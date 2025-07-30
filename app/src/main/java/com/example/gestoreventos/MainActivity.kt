@@ -26,24 +26,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.runtime.collectAsState
+import android.util.Log
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // BLOQUE TEMPORAL: Crear superadmin en FirebaseAuth
-        val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
-        val email = "6933@miapp.com"
-        val password = "caruma"
-        auth.createUserWithEmailAndPassword(email, password)
-            .addOnCompleteListener { task ->
-                if (task.isSuccessful) {
-                    println("Superadmin creado en FirebaseAuth")
-                } else {
-                    println("Error al crear superadmin: ${task.exception?.message}")
-                }
-            }
-        // FIN BLOQUE TEMPORAL
+
 
         enableEdgeToEdge()
         setContent {
@@ -353,6 +342,7 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
 
 
 }

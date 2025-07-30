@@ -3,6 +3,9 @@ package com.example.gestoreventos.view
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
@@ -13,8 +16,10 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -32,6 +37,9 @@ fun LoginScreen(
     usuarioViewModel: UsuarioViewModel = viewModel()
 ) {
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
+    val scrollState = rememberScrollState()
+
     var id by remember { mutableStateOf("") }
     var contrasena by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
@@ -55,7 +63,11 @@ fun LoginScreen(
             verticalArrangement = Arrangement.Top,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 20.dp)
+                .verticalScroll(
+                    state = scrollState,
+                    enabled = true
+                )
+                .padding(top = 20.dp, bottom = 200.dp) // Más padding inferior para forzar scroll
         ) {
             // Logo grande y centrado
             if (logoBitmap != null) {
@@ -64,7 +76,7 @@ fun LoginScreen(
                     contentDescription = "Logo Caruma",
                     modifier = Modifier
                         .size(width = 500.dp, height = 330.dp)
-                        .padding(bottom = 0.dp)
+                        .padding(bottom = 20.dp)
                 )
             }
             // Card del formulario
@@ -76,12 +88,18 @@ fun LoginScreen(
                 colors = CardDefaults.cardColors(containerColor = Color.White)
             ) {
                 Column(
-                    modifier = Modifier.padding(32.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 32.dp, vertical = 40.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
                 ) {
+                    // Espacio superior para centrar el contenido
+                    Spacer(modifier = Modifier.height(20.dp))
+
                     Text(
                         text = "Iniciar Sesión",
-                        fontSize = 24.sp,
+                        fontSize = 34.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFFD4AF37),
                         modifier = Modifier.padding(bottom = 24.dp)
@@ -94,7 +112,10 @@ fun LoginScreen(
                         },
                         label = { Text("ID de usuario") },
                         singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Number,
+                            imeAction = ImeAction.Next
+                        ),
                         shape = RoundedCornerShape(16.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = Color(0xFFD4AF37),
@@ -115,6 +136,9 @@ fun LoginScreen(
                         label = { Text("Contraseña") },
                         singleLine = true,
                         visualTransformation = PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(
+                            imeAction = ImeAction.Done
+                        ),
                         shape = RoundedCornerShape(16.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = Color(0xFFD4AF37),
@@ -136,6 +160,7 @@ fun LoginScreen(
                     }
                     Button(
                         onClick = {
+                            focusManager.clearFocus() // Ocultar teclado
                             if (id.isBlank() || contrasena.isBlank()) {
                                 error = "Completa todos los campos"
                                 return@Button
@@ -170,6 +195,12 @@ fun LoginScreen(
                             fontSize = 18.sp
                         )
                     }
+
+                    // Espacio inferior para centrar el contenido
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    // Espacio adicional para forzar scroll
+                    Spacer(modifier = Modifier.height(100.dp))
                 }
             }
         }

@@ -61,14 +61,6 @@ fun HomeScreenSuperAdmin(
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
-            Text(
-                text = "Panel de Administración",
-                style = MaterialTheme.typography.titleMedium.copy(
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
-                ),
-                modifier = Modifier.padding(bottom = 32.dp)
-            )
-
             // Botones elegantes
             ElegantButton(
                 text = "Mobiliario",

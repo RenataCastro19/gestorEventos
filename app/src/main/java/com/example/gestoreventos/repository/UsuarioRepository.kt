@@ -2,6 +2,7 @@ package com.example.gestoreventos.repository
 
 import com.example.gestoreventos.model.Usuario
 import com.google.firebase.firestore.FirebaseFirestore
+import android.util.Log
 
 class UsuarioRepository {
     private val db = FirebaseFirestore.getInstance()
@@ -14,8 +15,12 @@ class UsuarioRepository {
         db.collection("usuarios")
             .document(usuario.id)
             .set(usuario)
-            .addOnSuccessListener { onSuccess() }
-            .addOnFailureListener { exception -> onFailure(exception) }
+            .addOnSuccessListener {
+                onSuccess()
+            }
+            .addOnFailureListener { exception ->
+                onFailure(exception)
+            }
     }
 
     fun verificarIdDisponible(id: String, onResult: (Boolean) -> Unit) {
