@@ -1033,16 +1033,37 @@ fun CalendarioScreen(
     mobiliarioViewModel: MobiliarioViewModel = viewModel(),
     usuarioViewModel: UsuarioViewModel = viewModel(),
     categoriaMobiliarioViewModel: CategoriaMobiliarioViewModel = viewModel(),
+    usuarioActual: Usuario? = null, // Parámetro para el usuario actual
     modifier: Modifier = Modifier
 ) {
     println("DEBUG: CalendarioScreen iniciado")
     // Estados para los datos
-    var eventos by remember { mutableStateOf(listOf<Evento>()) }
+    var eventosOriginales by remember { mutableStateOf(listOf<Evento>()) }
     var clientes by remember { mutableStateOf(listOf<Cliente>()) }
     var servicios by remember { mutableStateOf(listOf<Servicio>()) }
     var mobiliarios by remember { mutableStateOf(listOf<Mobiliario>()) }
     var usuarios by remember { mutableStateOf(listOf<Usuario>()) }
     var categoriasMobiliario by remember { mutableStateOf(listOf<CategoriaMobiliario>()) }
+
+    // Eventos filtrados según el rol del usuario
+    val eventos = remember(eventosOriginales, usuarioActual) {
+        when (usuarioActual?.rol) {
+            "empleado" -> {
+                // Para empleados, mostrar solo eventos donde están asignados
+                eventosOriginales.filter { evento ->
+                    evento.listaIdsEmpleados.contains(usuarioActual.id)
+                }
+            }
+            "admin", "super_admin" -> {
+                // Para admin y super_admin, mostrar todos los eventos
+                eventosOriginales
+            }
+            else -> {
+                // Si no hay usuario logueado, no mostrar eventos
+                emptyList()
+            }
+        }
+    }
 
     // Estados del calendario
     var currentMonth by remember { mutableStateOf(Calendar.getInstance()) }
@@ -1053,7 +1074,7 @@ fun CalendarioScreen(
 
     // Cargar datos
     LaunchedEffect(Unit) {
-        eventoViewModel.obtenerEventos { eventos = it }
+        eventoViewModel.obtenerEventos { eventosOriginales = it }
         clienteViewModel.obtenerClientes { clientes = it }
         servicioViewModel.obtenerServicios { servicios = it }
         mobiliarioViewModel.obtenerMobiliario { mobiliarios = it }

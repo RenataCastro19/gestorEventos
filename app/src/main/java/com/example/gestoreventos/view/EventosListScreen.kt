@@ -70,30 +70,27 @@ fun EventosListScreen(
     var filtroSeleccionado by remember { mutableStateOf("Todos los Eventos") }
     val currentUserId = currentUser?.id
 
-    // Calcular eventos filtrados directamente - SIN PARPADEO
-    val eventosFiltrados = remember(eventos, filtroSeleccionado, currentUserId, currentUser?.rol) {
-        if (eventos.isEmpty()) {
-            emptyList()
-        } else {
-            when (filtroSeleccionado) {
-                "Mis Eventos" -> {
-                    if (currentUserId != null) {
-                        // Para admin y super_admin: mostrar todos los eventos futuros
-                        // Para empleados: mostrar solo eventos donde están asignados
-                        if (currentUser?.rol == "admin" || currentUser?.rol == "super_admin") {
-                            eventos.filter { !DateUtils.isEventoPasado(it) }
-                        } else {
+    // Filtrado estable usando derivedStateOf para evitar parpadeo
+    val eventosFiltrados by remember {
+        derivedStateOf {
+            if (eventos.isEmpty()) {
+                emptyList()
+            } else {
+                when (filtroSeleccionado) {
+                    "Mis Eventos" -> {
+                        if (currentUserId != null) {
+                            // Para todos los roles: mostrar solo eventos donde el usuario está asignado
                             eventos.filter { evento ->
                                 !DateUtils.isEventoPasado(evento) &&
                                         evento.listaIdsEmpleados.contains(currentUserId)
                             }
+                        } else {
+                            emptyList()
                         }
-                    } else {
-                        emptyList()
                     }
+                    "Eventos Pasados" -> eventos.filter { DateUtils.isEventoPasado(it) }
+                    else -> eventos.filter { !DateUtils.isEventoPasado(it) } // "Todos los Eventos"
                 }
-                "Eventos Pasados" -> eventos.filter { DateUtils.isEventoPasado(it) }
-                else -> eventos.filter { !DateUtils.isEventoPasado(it) } // "Todos los Eventos"
             }
         }
     }
@@ -205,7 +202,9 @@ fun EventosListScreen(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .clickable {
-                                                filtroSeleccionado = opcion
+                                                if (filtroSeleccionado != opcion) {
+                                                    filtroSeleccionado = opcion
+                                                }
                                                 filtroExpandido = false
                                             }
                                             .padding(16.dp),
@@ -242,14 +241,14 @@ fun EventosListScreen(
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
-        // Listado elegante
+        // Listado elegante sin indicadores de carga
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             items(
                 items = eventosFiltrados,
-                key = { evento -> evento.id } // ← AGREGAR ESTA LÍNEA
+                key = { evento -> evento.id }
             ) { evento ->
                 ElegantEventoItem(
                     evento = evento,
@@ -641,12 +640,12 @@ fun EventoDetallesDialog(
                     DetalleSeccion(
                         titulo = "Información General",
                         contenido = {
-                            DetalleItem("ID del Evento", evento.id)
+                            DetalleItem("ID evento", evento.id)
                             DetalleItem("Fecha", evento.fecha)
                             DetalleItem("Horario", "${evento.horaInicio} - ${evento.horaFin}")
-                            DetalleItem("Número de Personas", "${evento.numeroPersonas} personas")
-                            DetalleItem("Dirección del Evento", evento.direccionEvento)
-                            DetalleItem("Comentarios", evento.detalleServicio)
+                            DetalleItem("No. Personas", "${evento.numeroPersonas} personas")
+                            DetalleItem("Dirección", evento.direccionEvento)
+                            DetalleItem("Notas", evento.detalleServicio)
                         }
                     )
 
@@ -661,10 +660,10 @@ fun EventoDetallesDialog(
                             } else if (cliente != null) {
                                 DetalleItem("Nombre", cliente!!.nombre)
                                 DetalleItem("Teléfono", cliente!!.telefono)
-                                DetalleItem("ID del Cliente", cliente!!.id)
+                                DetalleItem("ID cliente", cliente!!.id)
                             } else {
                                 DetalleItem("Cliente", "No encontrado")
-                                DetalleItem("ID del Cliente", evento.idCliente.ifEmpty { "Sin asignar" })
+                                DetalleItem("ID cliente", evento.idCliente.ifEmpty { "Sin asignar" })
                                 DetalleItem("Estado", "Cliente no encontrado en la base de datos")
                             }
                         }

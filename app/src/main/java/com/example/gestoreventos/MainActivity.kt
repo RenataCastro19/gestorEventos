@@ -297,7 +297,7 @@ class MainActivity : ComponentActivity() {
 
                         // Ruta del calendario - accesible para todos los roles
                         composable("calendario") {
-                            CalendarioScreen()
+                            CalendarioScreen(usuarioActual = usuarioActual)
                         }
                         // Rutas protegidas - para empleados
                         composable("empleado_home") {
