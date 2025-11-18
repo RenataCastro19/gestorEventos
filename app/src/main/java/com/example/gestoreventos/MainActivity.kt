@@ -4,9 +4,12 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Scaffold
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -19,7 +22,9 @@ import com.example.gestoreventos.view.*
 import com.example.gestoreventos.viewmodel.EventoViewModel
 import com.example.gestoreventos.viewmodel.UsuarioViewModel
 import com.example.gestoreventos.viewmodel.SuperAdminViewModel
+import com.example.gestoreventos.viewmodel.ServicioViewModel
 import com.example.gestoreventos.model.Evento
+import com.example.gestoreventos.model.Servicio
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -32,9 +37,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-
-
         enableEdgeToEdge()
+
         setContent {
             GestorEventosTheme {
                 val navController = rememberNavController()
@@ -270,10 +274,20 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                         }
+
+                        // SERVICIOS - RUTAS ACTUALIZADAS
                         composable("servicios_list") {
                             if (usuarioActual?.rol == "super_admin" || usuarioActual?.rol == "admin") {
                                 ServiciosListScreen(
-                                    onAgregarServicioClick = { navController.navigate("agregar_servicio") }
+                                    onAgregarServicioClick = { servicio ->
+                                        if (servicio != null) {
+                                            // Editar servicio existente
+                                            navController.navigate("editar_servicio/${servicio.id}")
+                                        } else {
+                                            // Agregar nuevo servicio
+                                            navController.navigate("agregar_servicio")
+                                        }
+                                    }
                                 )
                             } else {
                                 LaunchedEffect(Unit) {
@@ -283,9 +297,62 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                         }
+
                         composable("agregar_servicio") {
                             if (usuarioActual?.rol == "super_admin" || usuarioActual?.rol == "admin") {
-                                AgregarServicioForm()
+                                AgregarServicioForm(
+                                    servicioEditar = null,
+                                    onGuardarExitoso = {
+                                        navController.popBackStack()
+                                    }
+                                )
+                            } else {
+                                LaunchedEffect(Unit) {
+                                    navController.navigate("login") {
+                                        popUpTo("login") { inclusive = true }
+                                    }
+                                }
+                            }
+                        }
+
+                        composable(
+                            route = "editar_servicio/{servicioId}",
+                            arguments = listOf(
+                                navArgument("servicioId") { type = NavType.StringType }
+                            )
+                        ) { backStackEntry ->
+                            if (usuarioActual?.rol == "super_admin" || usuarioActual?.rol == "admin") {
+                                val servicioId = backStackEntry.arguments?.getString("servicioId")
+                                val servicioViewModel: ServicioViewModel = viewModel()
+                                var servicioAEditar by remember { mutableStateOf<Servicio?>(null) }
+
+                                // Cargar el servicio a editar
+                                LaunchedEffect(servicioId) {
+                                    if (servicioId != null) {
+                                        servicioViewModel.obtenerServicioPorId(servicioId) { servicio ->
+                                            servicioAEditar = servicio
+                                        }
+                                    }
+                                }
+
+                                // Mostrar el formulario cuando el servicio esté cargado
+                                if (servicioAEditar != null) {
+                                    AgregarServicioForm(
+                                        servicioEditar = servicioAEditar,
+                                        viewModel = servicioViewModel,
+                                        onGuardarExitoso = {
+                                            navController.popBackStack()
+                                        }
+                                    )
+                                } else {
+                                    // Mostrar indicador de carga mientras se obtiene el servicio
+                                    Box(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        CircularProgressIndicator()
+                                    }
+                                }
                             } else {
                                 LaunchedEffect(Unit) {
                                     navController.navigate("login") {
@@ -342,7 +409,4 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-
-
-
 }

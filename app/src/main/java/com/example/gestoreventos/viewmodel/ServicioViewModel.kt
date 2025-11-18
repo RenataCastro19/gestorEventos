@@ -47,8 +47,16 @@ class ServicioViewModel : ViewModel() {
 
         intentar()
     }
+
     fun obtenerServicios(onResult: (List<Servicio>) -> Unit) {
         repository.obtenerServicios(onResult)
+    }
+
+    fun obtenerServicioPorId(
+        servicioId: String,
+        onResult: (Servicio?) -> Unit
+    ) {
+        repository.obtenerServicioPorId(servicioId, onResult)
     }
 
     fun inhabilitarServicio(servicio: Servicio, onSuccess: () -> Unit, onFailure: (Exception) -> Unit) {
@@ -69,4 +77,15 @@ class ServicioViewModel : ViewModel() {
         )
     }
 
+    fun actualizarServicio(
+        servicio: Servicio,
+        onSuccess: () -> Unit,
+        onFailure: (Exception) -> Unit
+    ) {
+        repository.actualizarServicio(
+            servicio = servicio,
+            onSuccess = onSuccess,
+            onFailure = onFailure
+        )
+    }
 }

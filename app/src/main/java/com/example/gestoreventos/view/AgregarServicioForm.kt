@@ -18,24 +18,27 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.gestoreventos.model.CategoriaServicio
+import com.example.gestoreventos.model.Servicio
 import com.example.gestoreventos.viewmodel.ServicioViewModel
 
 @Composable
 fun AgregarServicioForm(
     modifier: Modifier = Modifier,
-    viewModel: ServicioViewModel = ServicioViewModel()
+    viewModel: ServicioViewModel = ServicioViewModel(),
+    servicioEditar: Servicio? = null,
+    onGuardarExitoso: () -> Unit = {}
 ) {
-    var nombre by remember { mutableStateOf("") }
-    var descripcion by remember { mutableStateOf("") }
-    var precioTexto by remember { mutableStateOf("") }
-    var categoriasConfirmadas by remember { mutableStateOf(mutableListOf<CategoriaServicio>()) }
+    var nombre by remember { mutableStateOf(servicioEditar?.nombre ?: "") }
+    var descripcion by remember { mutableStateOf(servicioEditar?.descripcion ?: "") }
+    var precioTexto by remember { mutableStateOf(servicioEditar?.precioPorPersona?.toString() ?: "") }
+    var categoriasConfirmadas by remember { mutableStateOf(servicioEditar?.categorias?.toList() ?: emptyList()) }
     var mensaje by remember { mutableStateOf("") }
 
     // Estados para el formulario de categoría actual
     var mostrarFormularioCategoria by remember { mutableStateOf(false) }
     var nombreCategoriaActual by remember { mutableStateOf("") }
     var nuevaOpcion by remember { mutableStateOf("") }
-    var opcionesActuales by remember { mutableStateOf(mutableListOf<String>()) }
+    var opcionesActuales by remember { mutableStateOf(emptyList<String>()) }
 
     Column(
         modifier = modifier
@@ -44,7 +47,7 @@ fun AgregarServicioForm(
             .padding(16.dp)
     ) {
         Text(
-            "Agregar Servicio",
+            if (servicioEditar != null) "Editar Servicio" else "Agregar Servicio",
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold
         )
@@ -142,7 +145,7 @@ fun AgregarServicioForm(
                         modifier = Modifier.fillMaxWidth(),
                         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
                         )
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
@@ -172,9 +175,7 @@ fun AgregarServicioForm(
                             Button(
                                 onClick = {
                                     if (nuevaOpcion.isNotBlank()) {
-                                        val nuevasOpciones = opcionesActuales.toMutableList()
-                                        nuevasOpciones.add(nuevaOpcion.trim())
-                                        opcionesActuales = nuevasOpciones
+                                        opcionesActuales = opcionesActuales + nuevaOpcion.trim()
                                         nuevaOpcion = ""
                                     }
                                 },
@@ -212,9 +213,7 @@ fun AgregarServicioForm(
                                             )
                                             IconButton(
                                                 onClick = {
-                                                    val nuevasOpciones = opcionesActuales.toMutableList()
-                                                    nuevasOpciones.removeAt(index)
-                                                    opcionesActuales = nuevasOpciones
+                                                    opcionesActuales = opcionesActuales.filterIndexed { i, _ -> i != index }
                                                 },
                                                 modifier = Modifier.size(24.dp)
                                             ) {
@@ -242,14 +241,12 @@ fun AgregarServicioForm(
                                         )
 
                                         // Agregar a la lista de categorías confirmadas
-                                        val nuevasCategoriasConfirmadas = categoriasConfirmadas.toMutableList()
-                                        nuevasCategoriasConfirmadas.add(nuevaCategoria)
-                                        categoriasConfirmadas = nuevasCategoriasConfirmadas
+                                        categoriasConfirmadas = categoriasConfirmadas + nuevaCategoria
 
                                         // Limpiar el formulario
                                         nombreCategoriaActual = ""
                                         nuevaOpcion = ""
-                                        opcionesActuales = mutableListOf()
+                                        opcionesActuales = emptyList()
 
                                         // Ocultar el formulario
                                         mostrarFormularioCategoria = false
@@ -306,9 +303,7 @@ fun AgregarServicioForm(
                                         )
                                         IconButton(
                                             onClick = {
-                                                val nuevasCategoriasConfirmadas = categoriasConfirmadas.toMutableList()
-                                                nuevasCategoriasConfirmadas.removeAt(index)
-                                                categoriasConfirmadas = nuevasCategoriasConfirmadas
+                                                categoriasConfirmadas = categoriasConfirmadas.filterIndexed { i, _ -> i != index }
                                             },
                                             modifier = Modifier.size(24.dp)
                                         ) {
@@ -358,23 +353,45 @@ fun AgregarServicioForm(
                     // Debug: mostrar qué categorías se van a guardar
                     println("Categorías a guardar: ${categoriasConfirmadas.map { "${it.nombre}: ${it.opciones}" }}")
 
-                    viewModel.agregarServicio(
-                        nombre.trim(),
-                        descripcion.trim(),
-                        categoriasConfirmadas.toList(),
-                        precio,
-                        onSuccess = {
-                            mensaje = "Servicio agregado correctamente"
-                            nombre = ""
-                            descripcion = ""
-                            precioTexto = ""
-                            categoriasConfirmadas = mutableListOf()
-                            mostrarFormularioCategoria = false
-                        },
-                        onFailure = {
-                            mensaje = "Error: ${it.message}"
-                        }
-                    )
+                    if (servicioEditar != null) {
+                        // Actualizar servicio existente
+                        val servicioActualizado = servicioEditar.copy(
+                            nombre = nombre,
+                            descripcion = descripcion,
+                            categorias = categoriasConfirmadas,
+                            precioPorPersona = precioTexto.toDoubleOrNull() ?: 0.0
+                        )
+                        viewModel.actualizarServicio(
+                            servicio = servicioActualizado,
+                            onSuccess = {
+                                mensaje = "Servicio actualizado exitosamente"
+                                onGuardarExitoso()
+                            },
+                            onFailure = { e ->
+                                mensaje = "Error al actualizar el servicio: ${e.message}"
+                            }
+                        )
+                    } else {
+                        // Crear nuevo servicio
+                        viewModel.agregarServicio(
+                            nombre = nombre,
+                            descripcion = descripcion,
+                            categorias = categoriasConfirmadas,
+                            precioPorPersona = precioTexto.toDoubleOrNull() ?: 0.0,
+                            onSuccess = {
+                                // Limpiar el formulario
+                                nombre = ""
+                                descripcion = ""
+                                precioTexto = ""
+                                categoriasConfirmadas = emptyList()
+                                mensaje = "Servicio agregado exitosamente"
+                                onGuardarExitoso()
+                            },
+                            onFailure = { e ->
+                                mensaje = "Error al agregar el servicio: ${e.message}"
+                            }
+                        )
+                    }
                 } else {
                     mensaje = "Faltan datos válidos"
                 }

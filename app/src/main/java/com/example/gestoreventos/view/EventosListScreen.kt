@@ -47,6 +47,7 @@ import com.example.gestoreventos.utils.PdfGenerator
 import com.example.gestoreventos.utils.DateUtils
 import android.content.Context
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.Color
 import java.util.*
 
 @Composable
@@ -518,6 +519,10 @@ fun EventoDetallesDialog(
     var categoriasMobiliario by remember { mutableStateOf(listOf<CategoriaMobiliario>()) }
     var clientesCargados by remember { mutableStateOf(false) }
 
+    // Calcular saldo pendiente
+    val saldoPendiente = evento.precioTotal - evento.anticipo
+    val estaLiquidado = saldoPendiente <= 0.0
+
     LaunchedEffect(Unit) {
         usuarioViewModel.obtenerUsuarios { listaEmpleados ->
             empleados = listaEmpleados.filter { it.id in evento.listaIdsEmpleados }
@@ -671,9 +676,63 @@ fun EventoDetallesDialog(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
+                    // NUEVA SECCIÓN: Información Financiera
+                    DetalleSeccion(
+                        titulo = "Información Financiera",
+                        contenido = {
+                            DetalleItem("Precio Total", "$${String.format("%.2f", evento.precioTotal)}")
+                            DetalleItem("Anticipo", "$${String.format("%.2f", evento.anticipo)}")
 
+                            // Saldo Pendiente o Liquidado
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 8.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = if (estaLiquidado) "Estado:" else "Saldo Pendiente:",
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                    ),
+                                    modifier = Modifier.weight(0.4f)
+                                )
 
-                    // Servicios con categorías y opciones seleccionadas
+                                if (estaLiquidado) {
+                                    Card(
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = Color(0xFF4CAF50).copy(alpha = 0.2f)
+                                        ),
+                                        shape = RoundedCornerShape(8.dp)
+                                    ) {
+                                        Text(
+                                            text = "LIQUIDADO",
+                                            style = MaterialTheme.typography.bodyMedium.copy(
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFF4CAF50)
+                                            ),
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                        )
+                                    }
+                                } else {
+                                    Text(
+                                        text = "$${String.format("%.2f", saldoPendiente)}",
+                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.error
+                                        ),
+                                        modifier = Modifier.weight(0.6f)
+                                    )
+                                }
+                            }
+                        }
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Servicios con categorías, opciones y CANTIDAD
                     if (evento.serviciosSeleccionados.isNotEmpty()) {
                         DetalleSeccion(
                             titulo = "Servicios",
@@ -688,25 +747,51 @@ fun EventoDetallesDialog(
                                             .fillMaxWidth()
                                             .padding(vertical = 8.dp)
                                     ) {
-                                        Text(
-                                            text = "• $nombreServicio",
-                                            style = MaterialTheme.typography.bodyMedium.copy(
-                                                fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.onSurface
-                                            ),
-                                            modifier = Modifier.padding(bottom = 4.dp)
-                                        )
+                                        // Nombre del servicio y cantidad
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = "• $nombreServicio",
+                                                style = MaterialTheme.typography.bodyMedium.copy(
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.onSurface
+                                                ),
+                                                modifier = Modifier.weight(1f)
+                                            )
+
+                                            // NUEVO: Mostrar cantidad
+                                            Card(
+                                                colors = CardDefaults.cardColors(
+                                                    containerColor = BrandGold.copy(alpha = 0.15f)
+                                                ),
+                                                shape = RoundedCornerShape(8.dp)
+                                            ) {
+                                                Text(
+                                                    text = "${servicioSeleccionado.cantidad} pz",
+                                                    style = MaterialTheme.typography.bodySmall.copy(
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = BrandGold
+                                                    ),
+                                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                                )
+                                            }
+                                        }
 
                                         servicioSeleccionado.categoriasSeleccionadas.forEach { categoria ->
                                             val opcionesTexto = categoria.opcionesSeleccionadas.joinToString(", ")
-                                            Text(
-                                                text = "  - ${categoria.nombreCategoria}: $opcionesTexto",
-                                                style = MaterialTheme.typography.bodyMedium.copy(
-                                                    fontWeight = FontWeight.Normal,
-                                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
-                                                ),
-                                                modifier = Modifier.padding(start = 16.dp, bottom = 2.dp)
-                                            )
+                                            if (opcionesTexto.isNotEmpty()) {
+                                                Text(
+                                                    text = "  - ${categoria.nombreCategoria}: $opcionesTexto",
+                                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                                        fontWeight = FontWeight.Normal,
+                                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                                                    ),
+                                                    modifier = Modifier.padding(start = 16.dp, top = 2.dp, bottom = 2.dp)
+                                                )
+                                            }
                                         }
                                     }
                                 }

@@ -42,4 +42,26 @@ object DateUtils {
             false
         }
     }
+
+    /**
+     * Calcula los días que faltan para una fecha específica
+     *
+     * @param fecha Fecha en formato "DD/MM/YYYY"
+     * @return Número de días hasta la fecha (positivo si es futuro, negativo si es pasado)
+     */
+    fun diasHastaFecha(fecha: String): Long {
+        return try {
+            val eventoDate = parseFecha(fecha)
+            val hoy = Calendar.getInstance()
+            hoy.set(Calendar.HOUR_OF_DAY, 0)
+            hoy.set(Calendar.MINUTE, 0)
+            hoy.set(Calendar.SECOND, 0)
+            hoy.set(Calendar.MILLISECOND, 0)
+
+            val diffInMillis = eventoDate.timeInMillis - hoy.timeInMillis
+            diffInMillis / (1000 * 60 * 60 * 24)
+        } catch (e: Exception) {
+            0L
+        }
+    }
 }

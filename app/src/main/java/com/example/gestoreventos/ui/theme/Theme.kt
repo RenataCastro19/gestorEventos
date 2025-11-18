@@ -47,7 +47,7 @@ private val LightColorScheme = lightColorScheme(
 
 @Composable
 fun GestorEventosTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean = false, // Forzar siempre modo claro
     // Dynamic color is available on Android 12+
     dynamicColor: Boolean = false, // Desactivado para usar colores de marca
     content: @Composable () -> Unit

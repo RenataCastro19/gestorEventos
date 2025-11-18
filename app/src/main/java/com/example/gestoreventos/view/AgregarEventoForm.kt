@@ -50,6 +50,8 @@ fun AgregarEventoForm(
     var numeroPersonas by remember { mutableStateOf(eventoAEditar?.numeroPersonas?.toString() ?: "") }
     var detalleServicio by remember { mutableStateOf(eventoAEditar?.detalleServicio ?: "") }
     var direccionEvento by remember { mutableStateOf(eventoAEditar?.direccionEvento ?: "") }
+    var precioTotal by remember { mutableStateOf(eventoAEditar?.precioTotal?.toString() ?: "") }
+    var anticipo by remember { mutableStateOf(eventoAEditar?.anticipo?.toString() ?: "") }
 
     var servicioSeleccionado by remember { mutableStateOf<Servicio?>(null) }
     var mobiliariosSeleccionados = remember { mutableStateListOf<Mobiliario>() }
@@ -70,6 +72,9 @@ fun AgregarEventoForm(
     // Estado para la selección de opciones por servicio/categoría
     var seleccionServiciosCategorias by remember { mutableStateOf<Map<String, MutableMap<String, MutableSet<String>>>>(mutableMapOf()) }
 
+    // NUEVO: Estado para las cantidades de cada servicio
+    var cantidadesServicios by remember { mutableStateOf<Map<String, String>>(mutableMapOf()) }
+
     val empleadosActivos = usuarios.filter { it.estado == "activo" }
     val mobiliariosActivos = mobiliarios.filter { it.estado == "activo" }
     val serviciosActivos = servicios.filter { it.estado == "activo" }
@@ -87,6 +92,8 @@ fun AgregarEventoForm(
             numeroPersonas = eventoAEditar.numeroPersonas.toString()
             direccionEvento = eventoAEditar.direccionEvento
             detalleServicio = eventoAEditar.detalleServicio
+            precioTotal = eventoAEditar.precioTotal.toString()
+            anticipo = eventoAEditar.anticipo.toString()
 
             // Precargar servicios seleccionados (multi)
             val idsServicios = eventoAEditar.idServicio.split(",").filter { it.isNotEmpty() }
@@ -115,8 +122,12 @@ fun AgregarEventoForm(
 
             // Precargar selección de servicios y categorías
             val precarga = mutableMapOf<String, MutableMap<String, MutableSet<String>>>()
+            val precargaCantidades = mutableMapOf<String, String>()
+
             eventoAEditar.serviciosSeleccionados.forEach { servicioSeleccionado ->
                 precarga[servicioSeleccionado.idServicio] = mutableMapOf()
+                precargaCantidades[servicioSeleccionado.idServicio] = servicioSeleccionado.cantidad.toString()
+
                 servicioSeleccionado.categoriasSeleccionadas.forEach { categoriaSeleccionada ->
                     precarga[servicioSeleccionado.idServicio]?.put(
                         categoriaSeleccionada.nombreCategoria,
@@ -125,6 +136,7 @@ fun AgregarEventoForm(
                 }
             }
             seleccionServiciosCategorias = precarga
+            cantidadesServicios = precargaCantidades
             precargado = true
         }
     }
@@ -173,12 +185,12 @@ fun AgregarEventoForm(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Fecha - Corregido para que funcione el click
+        // Fecha - Opcional
         OutlinedTextField(
             value = fecha,
             onValueChange = { },
             readOnly = true,
-            label = { Text("Fecha del evento") },
+            label = { Text("Fecha del evento (opcional)") },
             trailingIcon = {
                 Icon(
                     Icons.Default.DateRange,
@@ -197,12 +209,12 @@ fun AgregarEventoForm(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Hora inicio - Corregido
+        // Hora inicio - Opcional
         OutlinedTextField(
             value = horaInicio,
             onValueChange = { },
             readOnly = true,
-            label = { Text("Hora Inicio") },
+            label = { Text("Hora Inicio (opcional)") },
             trailingIcon = {
                 Icon(
                     Icons.Default.ArrowDropDown,
@@ -221,12 +233,12 @@ fun AgregarEventoForm(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Hora fin - Corregido
+        // Hora fin - Opcional
         OutlinedTextField(
             value = horaFin,
             onValueChange = { },
             readOnly = true,
-            label = { Text("Hora Fin") },
+            label = { Text("Hora Fin (opcional)") },
             trailingIcon = {
                 Icon(
                     Icons.Default.ArrowDropDown,
@@ -251,6 +263,40 @@ fun AgregarEventoForm(
             label = { Text("Número de personas") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Precio Total
+        OutlinedTextField(
+            value = precioTotal,
+            onValueChange = {
+                val filtered = it.filter { c -> c.isDigit() || c == '.' }
+                if (filtered.count { c -> c == '.' } <= 1) {
+                    precioTotal = filtered
+                }
+            },
+            label = { Text("Precio Total") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            modifier = Modifier.fillMaxWidth(),
+            prefix = { Text("$") }
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Anticipo
+        OutlinedTextField(
+            value = anticipo,
+            onValueChange = {
+                val filtered = it.filter { c -> c.isDigit() || c == '.' }
+                if (filtered.count { c -> c == '.' } <= 1) {
+                    anticipo = filtered
+                }
+            },
+            label = { Text("Anticipo") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            modifier = Modifier.fillMaxWidth(),
+            prefix = { Text("$") }
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -295,82 +341,126 @@ fun AgregarEventoForm(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Servicio - Multi-selección
+        // Servicio - Multi-selección CON CANTIDAD
         Text("Servicios", style = MaterialTheme.typography.titleMedium)
         if (serviciosActivos.isNotEmpty()) {
             Column {
                 serviciosActivos.forEach { servicio ->
                     val isSelected = serviciosSeleccionados.contains(servicio)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .toggleable(
-                                value = isSelected,
-                                onValueChange = { checked ->
-                                    if (checked) {
-                                        serviciosSeleccionados.add(servicio)
-                                        // Inicializar estructura de selección si no existe
-                                        if (seleccionServiciosCategorias[servicio.id] == null) {
-                                            val catMap = mutableMapOf<String, MutableSet<String>>()
-                                            servicio.categorias.forEach { cat ->
-                                                catMap[cat.nombre] = mutableSetOf()
+
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .toggleable(
+                                    value = isSelected,
+                                    onValueChange = { checked ->
+                                        if (checked) {
+                                            serviciosSeleccionados.add(servicio)
+                                            // Inicializar cantidad
+                                            val nuevasCantidades = cantidadesServicios.toMutableMap()
+                                            nuevasCantidades[servicio.id] = "1"
+                                            cantidadesServicios = nuevasCantidades
+
+                                            // Inicializar estructura de selección si no existe
+                                            if (seleccionServiciosCategorias[servicio.id] == null) {
+                                                val catMap = mutableMapOf<String, MutableSet<String>>()
+                                                servicio.categorias.forEach { cat ->
+                                                    catMap[cat.nombre] = mutableSetOf()
+                                                }
+                                                val nuevoMapa = seleccionServiciosCategorias.toMutableMap()
+                                                nuevoMapa[servicio.id] = catMap
+                                                seleccionServiciosCategorias = nuevoMapa
                                             }
+                                        } else {
+                                            serviciosSeleccionados.remove(servicio)
                                             val nuevoMapa = seleccionServiciosCategorias.toMutableMap()
-                                            nuevoMapa[servicio.id] = catMap
+                                            nuevoMapa.remove(servicio.id)
                                             seleccionServiciosCategorias = nuevoMapa
+
+                                            val nuevasCantidades = cantidadesServicios.toMutableMap()
+                                            nuevasCantidades.remove(servicio.id)
+                                            cantidadesServicios = nuevasCantidades
                                         }
-                                    } else {
-                                        serviciosSeleccionados.remove(servicio)
-                                        val nuevoMapa = seleccionServiciosCategorias.toMutableMap()
-                                        nuevoMapa.remove(servicio.id)
-                                        seleccionServiciosCategorias = nuevoMapa
                                     }
-                                }
+                                )
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Checkbox(
+                                checked = isSelected,
+                                onCheckedChange = null
                             )
-                            .padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Checkbox(
-                            checked = isSelected,
-                            onCheckedChange = null
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(servicio.nombre)
-                    }
-                    // Mostrar categorías y opciones con checkboxes si está seleccionado
-                    if (isSelected) {
-                        servicio.categorias.forEach { categoria ->
-                            Text(
-                                text = categoria.nombre,
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.padding(start = 32.dp, top = 8.dp)
-                            )
-                            categoria.opciones.forEach { opcion ->
-                                val checked = seleccionServiciosCategorias[servicio.id]?.get(categoria.nombre)?.contains(opcion) == true
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(start = 48.dp), // Quitar .toggleable
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Checkbox(
-                                        checked = checked,
-                                        onCheckedChange = { isChecked ->
-                                            val nuevoMapa = seleccionServiciosCategorias.toMutableMap()
-                                            val catMap = (nuevoMapa[servicio.id]?.toMutableMap() ?: mutableMapOf())
-                                            val opcionesSet = (catMap[categoria.nombre]?.toMutableSet() ?: mutableSetOf())
-                                            if (isChecked) {
-                                                opcionesSet.add(opcion)
-                                            } else {
-                                                opcionesSet.remove(opcion)
-                                            }
-                                            catMap[categoria.nombre] = opcionesSet
-                                            nuevoMapa[servicio.id] = catMap
-                                            seleccionServiciosCategorias = nuevoMapa // Forzar recomposición
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(servicio.nombre, modifier = Modifier.weight(1f))
+                        }
+
+                        // NUEVO: Campo de cantidad cuando está seleccionado
+                        if (isSelected) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(start = 48.dp, end = 16.dp, bottom = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    "Cantidad:",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.padding(end = 8.dp)
+                                )
+                                OutlinedTextField(
+                                    value = cantidadesServicios[servicio.id] ?: "1",
+                                    onValueChange = { newValue ->
+                                        val filtered = newValue.filter { it.isDigit() }
+                                        if (filtered.isNotEmpty()) {
+                                            val nuevasCantidades = cantidadesServicios.toMutableMap()
+                                            nuevasCantidades[servicio.id] = filtered
+                                            cantidadesServicios = nuevasCantidades
                                         }
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(opcion)
+                                    },
+                                    label = { Text("Piezas/Unidades") },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    modifier = Modifier
+                                        .width(150.dp)
+                                        .height(70.dp),
+                                    singleLine = true
+                                )
+                            }
+
+                            // Mostrar categorías y opciones con checkboxes
+                            servicio.categorias.forEach { categoria ->
+                                Text(
+                                    text = categoria.nombre,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.padding(start = 32.dp, top = 8.dp)
+                                )
+                                categoria.opciones.forEach { opcion ->
+                                    val checked = seleccionServiciosCategorias[servicio.id]?.get(categoria.nombre)?.contains(opcion) == true
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(start = 48.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Checkbox(
+                                            checked = checked,
+                                            onCheckedChange = { isChecked ->
+                                                val nuevoMapa = seleccionServiciosCategorias.toMutableMap()
+                                                val catMap = (nuevoMapa[servicio.id]?.toMutableMap() ?: mutableMapOf())
+                                                val opcionesSet = (catMap[categoria.nombre]?.toMutableSet() ?: mutableSetOf())
+                                                if (isChecked) {
+                                                    opcionesSet.add(opcion)
+                                                } else {
+                                                    opcionesSet.remove(opcion)
+                                                }
+                                                catMap[categoria.nombre] = opcionesSet
+                                                nuevoMapa[servicio.id] = catMap
+                                                seleccionServiciosCategorias = nuevoMapa
+                                            }
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(opcion)
+                                    }
                                 }
                             }
                         }
@@ -458,20 +548,23 @@ fun AgregarEventoForm(
         Button(
             onClick = {
                 // Validaciones
-                if (fecha.isBlank() || horaInicio.isBlank() || horaFin.isBlank() ||
-                    numeroPersonas.isBlank() || nombreCliente.isBlank() ||
-                    telefonoCliente.length != 10 ||
+                if (nombreCliente.isBlank() || telefonoCliente.length != 10 ||
                     serviciosSeleccionados.isEmpty() || mobiliariosSeleccionados.isEmpty() ||
-                    empleadosSeleccionados.isEmpty()
+                    empleadosSeleccionados.isEmpty() || numeroPersonas.isBlank()
                 ) {
-                    // Aquí podrías mostrar un mensaje de error
+                    coroutineScope.launch {
+                        snackbarHostState.showSnackbar("Por favor completa todos los campos obligatorios")
+                    }
                     return@Button
                 }
+
                 val idsServicios = serviciosSeleccionados.joinToString(",") { it.id }
-                // Construir la estructura para serviciosSeleccionados
+
+                // Construir la estructura para serviciosSeleccionados CON CANTIDAD
                 val serviciosSeleccionadosEvento = serviciosSeleccionados.map { servicio ->
                     ServicioSeleccionado(
                         idServicio = servicio.id,
+                        cantidad = cantidadesServicios[servicio.id]?.toIntOrNull() ?: 1,
                         categoriasSeleccionadas = servicio.categorias.map { categoria ->
                             CategoriaSeleccionada(
                                 nombreCategoria = categoria.nombre,
@@ -480,6 +573,7 @@ fun AgregarEventoForm(
                         }
                     )
                 }
+
                 if (eventoAEditar != null) {
                     // Actualizar evento existente
                     val clienteExistente = clientes.find { it.nombre == nombreCliente.trim() && it.telefono == telefonoCliente.trim() }
@@ -495,6 +589,8 @@ fun AgregarEventoForm(
                         idServicio = idsServicios,
                         detalleServicio = detalleServicio,
                         idCliente = idClienteFinal,
+                        precioTotal = precioTotal.toDoubleOrNull() ?: 0.0,
+                        anticipo = anticipo.toDoubleOrNull() ?: 0.0,
                         serviciosSeleccionados = serviciosSeleccionadosEvento
                     )
                     eventoViewModel.actualizarEvento(
@@ -505,14 +601,15 @@ fun AgregarEventoForm(
                             }
                         },
                         onFailure = {
-                            // Manejar error
+                            coroutineScope.launch {
+                                snackbarHostState.showSnackbar("Error al actualizar evento")
+                            }
                         }
                     )
                 } else {
                     // Crear nuevo evento
                     val clienteExistente = clientes.find { it.nombre == nombreCliente.trim() && it.telefono == telefonoCliente.trim() }
                     if (clienteExistente != null) {
-                        // Si el cliente ya existe, usa su ID
                         eventoViewModel.agregarEventoAutoId(
                             fecha = fecha,
                             horaInicio = horaInicio,
@@ -524,7 +621,9 @@ fun AgregarEventoForm(
                             idMobiliario = mobiliariosSeleccionados.joinToString(",") { it.id },
                             idServicio = idsServicios,
                             detalleServicio = detalleServicio,
-                            serviciosSeleccionados = serviciosSeleccionadosEvento, // <-- nuevo campo
+                            precioTotal = precioTotal.toDoubleOrNull() ?: 0.0,
+                            anticipo = anticipo.toDoubleOrNull() ?: 0.0,
+                            serviciosSeleccionados = serviciosSeleccionadosEvento,
                             onSuccess = {
                                 coroutineScope.launch {
                                     snackbarHostState.showSnackbar("Evento agregado correctamente")
@@ -541,13 +640,17 @@ fun AgregarEventoForm(
                                 empleadosSeleccionados.clear()
                                 direccionEvento = ""
                                 detalleServicio = ""
+                                precioTotal = ""
+                                anticipo = ""
+                                cantidadesServicios = emptyMap()
                             },
                             onFailure = {
-                                // Manejar error
+                                coroutineScope.launch {
+                                    snackbarHostState.showSnackbar("Error al agregar evento")
+                                }
                             }
                         )
                     } else {
-                        // Si el cliente no existe, créalo y luego usa su ID
                         val clienteViewModelLocal = ClienteViewModel()
                         clienteViewModelLocal.agregarCliente(
                             nombreCliente.trim(),
@@ -564,12 +667,13 @@ fun AgregarEventoForm(
                                     idMobiliario = mobiliariosSeleccionados.joinToString(",") { it.id },
                                     idServicio = idsServicios,
                                     detalleServicio = detalleServicio,
-                                    serviciosSeleccionados = serviciosSeleccionadosEvento, // <-- nuevo campo
+                                    precioTotal = precioTotal.toDoubleOrNull() ?: 0.0,
+                                    anticipo = anticipo.toDoubleOrNull() ?: 0.0,
+                                    serviciosSeleccionados = serviciosSeleccionadosEvento,
                                     onSuccess = {
                                         coroutineScope.launch {
                                             snackbarHostState.showSnackbar("Evento agregado correctamente")
                                         }
-                                        // Limpiar formulario
                                         fecha = ""
                                         horaInicio = ""
                                         horaFin = ""
@@ -581,14 +685,21 @@ fun AgregarEventoForm(
                                         empleadosSeleccionados.clear()
                                         direccionEvento = ""
                                         detalleServicio = ""
+                                        precioTotal = ""
+                                        anticipo = ""
+                                        cantidadesServicios = emptyMap()
                                     },
                                     onFailure = {
-                                        // Manejar error
+                                        coroutineScope.launch {
+                                            snackbarHostState.showSnackbar("Error al agregar evento")
+                                        }
                                     }
                                 )
                             },
                             onFailure = {
-                                // Manejar error
+                                coroutineScope.launch {
+                                    snackbarHostState.showSnackbar("Error al crear cliente")
+                                }
                             }
                         )
                     }
@@ -673,7 +784,7 @@ fun showTimePicker(context: Context, onTimeSelected: (String) -> Unit) {
         },
         calendar.get(Calendar.HOUR_OF_DAY),
         calendar.get(Calendar.MINUTE),
-        false // false para formato 12 horas
+        false
     ).show()
 }
 

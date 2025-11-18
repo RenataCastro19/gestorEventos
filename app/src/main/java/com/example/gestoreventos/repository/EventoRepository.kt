@@ -2,6 +2,8 @@ package com.example.gestoreventos.repository
 
 import com.example.gestoreventos.model.Evento
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.android.gms.tasks.Task
+import com.google.firebase.firestore.QuerySnapshot
 
 class EventoRepository {
     private val db = FirebaseFirestore.getInstance()
@@ -62,5 +64,14 @@ class EventoRepository {
             .addOnFailureListener {
                 onResult(null)
             }
+    }
+
+    /**
+     * Obtiene todos los eventos como Task para usar con corutinas
+     *
+     * @return Task con lista de eventos
+     */
+    fun obtenerTodosLosEventos(): Task<QuerySnapshot> {
+        return db.collection("eventos").get()
     }
 }

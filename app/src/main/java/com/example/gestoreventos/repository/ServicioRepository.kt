@@ -35,6 +35,24 @@ class ServicioRepository {
             }
     }
 
+    fun obtenerServicioPorId(servicioId: String, onResult: (Servicio?) -> Unit) {
+        db.collection("servicios")
+            .document(servicioId)
+            .get()
+            .addOnSuccessListener { document ->
+                if (document.exists()) {
+                    val servicio = document.toObject(Servicio::class.java)
+                    onResult(servicio)
+                } else {
+                    onResult(null)
+                }
+            }
+            .addOnFailureListener { e ->
+                println("Error al obtener servicio: ${e.message}")
+                onResult(null)
+            }
+    }
+
     fun actualizarServicio(
         servicio: Servicio,
         onSuccess: () -> Unit,
@@ -46,5 +64,4 @@ class ServicioRepository {
             .addOnSuccessListener { onSuccess() }
             .addOnFailureListener { e -> onFailure(e) }
     }
-
 }

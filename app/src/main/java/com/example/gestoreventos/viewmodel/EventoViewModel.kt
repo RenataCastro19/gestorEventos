@@ -53,6 +53,8 @@ class EventoViewModel : ViewModel() {
         idMobiliario: String,
         idServicio: String,
         detalleServicio: String,
+        precioTotal: Double = 0.0,
+        anticipo: Double = 0.0,
         serviciosSeleccionados: List<ServicioSeleccionado> = emptyList(),
         onSuccess: () -> Unit,
         onFailure: (Exception) -> Unit
@@ -70,6 +72,8 @@ class EventoViewModel : ViewModel() {
             idMobiliario = idMobiliario,
             idServicio = idServicio,
             detalleServicio = detalleServicio,
+            precioTotal = precioTotal,
+            anticipo = anticipo,
             serviciosSeleccionados = serviciosSeleccionados
         )
         agregarEvento(evento, onSuccess, onFailure)

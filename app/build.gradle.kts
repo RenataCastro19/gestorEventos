@@ -68,8 +68,6 @@ dependencies {
     implementation("com.google.firebase:firebase-firestore-ktx")
     implementation("com.google.firebase:firebase-analytics-ktx")
 
-    // *** DEPENDENCIAS QUE NECESITAS AGREGAR ***
-
     // ViewModel Compose - OBLIGATORIO para viewModel() y StateFlow
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
 
@@ -89,4 +87,7 @@ dependencies {
     // Permisos de almacenamiento
     implementation("androidx.activity:activity-ktx:1.8.2")
     implementation("com.google.firebase:firebase-auth-ktx")
+
+    // WorkManager para notificaciones automáticas
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
 }

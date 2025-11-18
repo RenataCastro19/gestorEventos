@@ -7,12 +7,15 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -21,19 +24,52 @@ import androidx.compose.ui.window.DialogProperties
 import com.example.gestoreventos.model.Servicio
 import com.example.gestoreventos.viewmodel.ServicioViewModel
 import com.example.gestoreventos.ui.theme.BrandGold
-import androidx.compose.ui.graphics.Color
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 
 @Composable
 fun ServiciosListScreen(
-    onAgregarServicioClick: () -> Unit = {},
+    onAgregarServicioClick: (Servicio?) -> Unit = { _ -> },
     viewModel: ServicioViewModel = ServicioViewModel()
 ) {
     var servicios by remember { mutableStateOf(listOf<Servicio>()) }
+    val lifecycleOwner = LocalLifecycleOwner.current
 
-    LaunchedEffect(Unit) {
+    // Función para cargar servicios
+    fun cargarServicios() {
         viewModel.obtenerServicios { lista ->
             servicios = lista
+            println("DEBUG: Servicios cargados: ${lista.size}")
         }
+    }
+
+    // Cargar servicios al iniciar
+    LaunchedEffect(Unit) {
+        cargarServicios()
+    }
+
+    // Recargar cuando la pantalla vuelve a estar visible
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                println("DEBUG: Pantalla resumida, recargando servicios...")
+                cargarServicios()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    // Function to handle service edit
+    val onEditarServicio: (Servicio) -> Unit = { servicio ->
+        println("DEBUG: Editando servicio ID: ${servicio.id}")
+        onAgregarServicioClick(servicio)
     }
 
     Column(
@@ -55,7 +91,10 @@ fun ServiciosListScreen(
         // Botón de acción
         ServiciosButton(
             text = "Agregar Servicio",
-            onClick = onAgregarServicioClick,
+            onClick = {
+                println("DEBUG: Agregando nuevo servicio")
+                onAgregarServicioClick(null)
+            },
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -81,10 +120,9 @@ fun ServiciosListScreen(
                     servicio = servicio,
                     viewModel = viewModel,
                     onRecargarLista = {
-                        viewModel.obtenerServicios { lista ->
-                            servicios = lista
-                        }
-                    }
+                        cargarServicios()
+                    },
+                    onEditarClick = onEditarServicio
                 )
             }
         }
@@ -95,9 +133,12 @@ fun ServiciosListScreen(
 fun ElegantServicioItem(
     servicio: Servicio,
     viewModel: ServicioViewModel,
-    onRecargarLista: () -> Unit
+    onRecargarLista: () -> Unit,
+    onEditarClick: (Servicio) -> Unit = {}
 ) {
     var mostrarDetalles by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -204,10 +245,19 @@ fun ElegantServicioItem(
             }
         }
     }
+    // Show service details dialog when mostrarDetalles is true
     if (mostrarDetalles) {
         DetalleServicioDialog(
             servicio = servicio,
-            onDismiss = { mostrarDetalles = false }
+            onDismiss = { mostrarDetalles = false },
+            onEditClick = {
+                println("DEBUG: Click en botón Editar del diálogo")
+                mostrarDetalles = false
+                scope.launch {
+                    delay(100)
+                    onEditarClick(servicio)
+                }
+            }
         )
     }
 }
@@ -215,8 +265,10 @@ fun ElegantServicioItem(
 @Composable
 fun DetalleServicioDialog(
     servicio: Servicio,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onEditClick: () -> Unit = {}
 ) {
+    val scope = rememberCoroutineScope()
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(dismissOnClickOutside = true)
@@ -235,15 +287,101 @@ fun DetalleServicioDialog(
                     style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold, color = BrandGold)
                 )
                 Spacer(modifier = Modifier.height(16.dp))
-                Text(text = "Servicio: ${servicio.nombre}", style = MaterialTheme.typography.titleMedium)
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = servicio.descripcion,
-                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium)
-                )
+
+                // Estado del servicio
+                if (servicio.estado == "inhabilitado") {
+                    Text(
+                        text = "ESTADO: INHABILITADO",
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            color = Color.Red,
+                            fontWeight = FontWeight.Bold
+                        ),
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                }
+
+                // Información del servicio
+                Text(text = "Nombre: ${servicio.nombre}",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.fillMaxWidth())
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(text = "Descripción:",
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                    modifier = Modifier.fillMaxWidth())
+                Text(text = servicio.descripcion,
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.fillMaxWidth())
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(text = "Precio por persona: $${servicio.precioPorPersona}",
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.fillMaxWidth())
+
+                // Mostrar categorías si existen
+                if (servicio.categorias.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(text = "Categorías:",
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                        modifier = Modifier.fillMaxWidth())
+
+                    servicio.categorias.forEach { categoria ->
+                        Text(text = "- ${categoria.nombre}: ${categoria.opciones.joinToString(", ")}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.fillMaxWidth()
+                                .padding(start = 8.dp, top = 4.dp))
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(24.dp))
-                Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
-                    Text("Cerrar")
+
+                // Botones de acción
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    // Botón de editar
+                    Button(
+                        onClick = {
+                            println("DEBUG: Botón Editar presionado")
+                            onEditClick()
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(end = 8.dp)
+                            .height(48.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = BrandGold,
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Editar",
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Editar")
+                        }
+                    }
+
+                    // Botón de cerrar
+                    Button(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f).padding(start = 8.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    ) {
+                        Text("Cerrar")
+                    }
                 }
             }
         }
