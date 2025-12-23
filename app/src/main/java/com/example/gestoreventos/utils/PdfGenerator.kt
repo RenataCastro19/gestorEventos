@@ -2,455 +2,624 @@ package com.example.gestoreventos.utils
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.Paint
+import android.graphics.pdf.PdfDocument
 import android.net.Uri
 import androidx.core.content.FileProvider
-import com.example.gestoreventos.R
-import com.example.gestoreventos.model.Evento
-import com.example.gestoreventos.model.Usuario
-import com.example.gestoreventos.model.Servicio
-import com.example.gestoreventos.model.Cliente
-import com.example.gestoreventos.model.Mobiliario
-import com.itextpdf.kernel.colors.Color
-import com.itextpdf.kernel.colors.DeviceRgb
-import com.itextpdf.kernel.pdf.PdfDocument
-import com.itextpdf.kernel.pdf.PdfWriter
-import com.itextpdf.layout.Document
-import com.itextpdf.layout.element.Image
-import com.itextpdf.layout.element.Paragraph
-import com.itextpdf.layout.element.Table
-import com.itextpdf.layout.property.TextAlignment
-import com.itextpdf.layout.property.UnitValue
-import com.itextpdf.layout.property.HorizontalAlignment
-import com.itextpdf.io.image.ImageDataFactory
+import com.example.gestoreventos.model.*
 import java.io.File
+import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.*
 
-class PdfGenerator {
+object PdfGenerator {
 
-    companion object {
-        // Colores corporativos de Caruma Barras
-        private val COLOR_NEGRO = DeviceRgb(0, 0, 0)
-        private val COLOR_BLANCO = DeviceRgb(255, 255, 255)
-        private val COLOR_DORADO = DeviceRgb(212, 175, 55) // #d4af37
-        private val COLOR_GRIS_SUAVE = DeviceRgb(245, 245, 245)
+    private const val PAGE_WIDTH = 595 // A4 width in points
+    private const val PAGE_HEIGHT = 842 // A4 height in points
+    private const val MARGIN = 50
+    private const val LINE_SPACING = 20
 
-        // Función para formatear fecha con mes en español
-        private fun formatearFecha(fecha: String): String {
-            return try {
-                val meses = mapOf(
-                    "01" to "enero", "02" to "febrero", "03" to "marzo", "04" to "abril",
-                    "05" to "mayo", "06" to "junio", "07" to "julio", "08" to "agosto",
-                    "09" to "septiembre", "10" to "octubre", "11" to "noviembre", "12" to "diciembre"
-                )
+    /**
+     * Genera el PDF del contrato para el cliente con el formato CARUMA SNACKS BAR
+     */
+    fun generateClientPdf(
+        context: Context,
+        evento: Evento,
+        cliente: Cliente?,
+        servicio: Servicio?,
+        empleados: List<Usuario>,
+        mobiliarios: List<Mobiliario>,
+        todosLosServicios: List<Servicio>,
+        categoriasMobiliario: List<CategoriaMobiliario>
+    ): Uri? {
+        return try {
+            val pdfDocument = PdfDocument()
+            var pageNumber = 1
 
-                // Asumiendo formato DD/MM/YYYY
-                val partes = fecha.split("/")
-                if (partes.size == 3) {
-                    val dia = partes[0]
-                    val mes = meses[partes[1]] ?: partes[1]
-                    val año = partes[2]
-                    "$dia de $mes de $año"
-                } else {
-                    fecha // Si no coincide el formato, devolver original
+            // ==================== PÁGINA 1: HOJA DE SERVICIOS ====================
+            val page1 = pdfDocument.startPage(
+                PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, pageNumber++).create()
+            )
+            val canvas1 = page1.canvas
+            var yPosition = MARGIN.toFloat()
+
+            // Título principal
+            val titlePaint = Paint().apply {
+                textSize = 24f
+                isFakeBoldText = true
+                textAlign = Paint.Align.CENTER
+            }
+            canvas1.drawText(
+                "CARUMA SNACKS BAR",
+                PAGE_WIDTH / 2f,
+                yPosition,
+                titlePaint
+            )
+            yPosition += 40
+
+            // Subtítulo
+            val subtitlePaint = Paint().apply {
+                textSize = 16f
+                isFakeBoldText = true
+                textAlign = Paint.Align.CENTER
+            }
+            canvas1.drawText(
+                "HOJA DE SERVICIOS - CARUMA SNACKS BAR",
+                PAGE_WIDTH / 2f,
+                yPosition,
+                subtitlePaint
+            )
+            yPosition += 40
+
+            // Configurar paint para el contenido
+            val normalPaint = Paint().apply {
+                textSize = 12f
+                textAlign = Paint.Align.LEFT
+            }
+            val boldPaint = Paint().apply {
+                textSize = 12f
+                isFakeBoldText = true
+                textAlign = Paint.Align.LEFT
+            }
+
+            // Datos del cliente
+            canvas1.drawText("Nombre del Cliente: ${cliente?.nombre ?: "No especificado"}", MARGIN.toFloat(), yPosition, normalPaint)
+            yPosition += LINE_SPACING
+
+            canvas1.drawText("Teléfono de contacto: ${cliente?.telefono ?: "No especificado"}", MARGIN.toFloat(), yPosition, normalPaint)
+            yPosition += LINE_SPACING
+
+            canvas1.drawText("Fecha del Evento: ${evento.fecha}", MARGIN.toFloat(), yPosition, normalPaint)
+            yPosition += LINE_SPACING
+
+            canvas1.drawText("Hora de Inicio: ${evento.horaInicio} Hora de Fin: ${evento.horaFin}", MARGIN.toFloat(), yPosition, normalPaint)
+            yPosition += LINE_SPACING
+
+            canvas1.drawText("Dirección del Evento: ${evento.direccionEvento}", MARGIN.toFloat(), yPosition, normalPaint)
+            yPosition += LINE_SPACING * 2
+
+            // Tipo de servicio
+            canvas1.drawText("Tipo de Servicio de barra contratado:", MARGIN.toFloat(), yPosition, boldPaint)
+            yPosition += LINE_SPACING
+
+            // Servicios seleccionados con detalles
+            evento.serviciosSeleccionados.forEach { servicioSel ->
+                val servicioDetalle = todosLosServicios.find { it.id == servicioSel.idServicio }
+                if (servicioDetalle != null) {
+                    canvas1.drawText("• ${servicioDetalle.nombre}", MARGIN.toFloat() + 20, yPosition, normalPaint)
+                    yPosition += LINE_SPACING
+
+                    // Mostrar categorías y opciones seleccionadas
+                    servicioSel.categoriasSeleccionadas.forEach { categoria ->
+                        if (categoria.opcionesSeleccionadas.isNotEmpty()) {
+                            canvas1.drawText("${categoria.nombreCategoria}:", MARGIN.toFloat() + 40, yPosition, normalPaint)
+                            yPosition += LINE_SPACING
+
+                            categoria.opcionesSeleccionadas.forEach { opcion ->
+                                canvas1.drawText("• $opcion", MARGIN.toFloat() + 60, yPosition, normalPaint)
+                                yPosition += LINE_SPACING
+                            }
+                        }
+                    }
                 }
-            } catch (e: Exception) {
-                fecha // En caso de error, devolver original
+            }
+
+            yPosition += LINE_SPACING
+
+            // Número de personas
+            canvas1.drawText("N° de personas: ${evento.numeroPersonas} Personas", MARGIN.toFloat(), yPosition, normalPaint)
+            yPosition += LINE_SPACING
+
+            // Información financiera
+            canvas1.drawText("Precio Total: $${String.format("%.2f", evento.precioTotal)}", MARGIN.toFloat(), yPosition, normalPaint)
+            yPosition += LINE_SPACING
+
+            canvas1.drawText("Anticipo recibido: $${String.format("%.2f", evento.anticipo)}", MARGIN.toFloat(), yPosition, normalPaint)
+            yPosition += LINE_SPACING
+
+            val saldoPendiente = evento.precioTotal - evento.anticipo
+            canvas1.drawText("Saldo pendiente: $${String.format("%.2f", saldoPendiente)}", MARGIN.toFloat(), yPosition, normalPaint)
+            yPosition += LINE_SPACING * 2
+
+            // Observaciones
+            canvas1.drawText("Observaciones adicionales:", MARGIN.toFloat(), yPosition, boldPaint)
+            yPosition += LINE_SPACING
+
+            if (evento.detalleServicio.isNotBlank()) {
+                // Dividir texto largo en múltiples líneas
+                val palabras = evento.detalleServicio.split(" ")
+                var lineaActual = ""
+                palabras.forEach { palabra ->
+                    val testLine = if (lineaActual.isEmpty()) palabra else "$lineaActual $palabra"
+                    if (normalPaint.measureText(testLine) > PAGE_WIDTH - MARGIN * 2) {
+                        canvas1.drawText(lineaActual, MARGIN.toFloat(), yPosition, normalPaint)
+                        yPosition += LINE_SPACING
+                        lineaActual = palabra
+                    } else {
+                        lineaActual = testLine
+                    }
+                }
+                if (lineaActual.isNotEmpty()) {
+                    canvas1.drawText(lineaActual, MARGIN.toFloat(), yPosition, normalPaint)
+                    yPosition += LINE_SPACING
+                }
+            } else {
+                canvas1.drawText("El servicio de barra llegará 30 a 40 min antes para el montaje, y apertura", MARGIN.toFloat(), yPosition, normalPaint)
+                yPosition += LINE_SPACING
+                canvas1.drawText("servicio a la hora pactada.", MARGIN.toFloat(), yPosition, normalPaint)
+            }
+
+            pdfDocument.finishPage(page1)
+
+            // ==================== PÁGINA 2: CONTRATO ====================
+            val page2 = pdfDocument.startPage(
+                PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, pageNumber++).create()
+            )
+            val canvas2 = page2.canvas
+            yPosition = MARGIN.toFloat()
+
+            // Título del contrato
+            canvas2.drawText("CARUMA SNACKS BAR", PAGE_WIDTH / 2f, yPosition, titlePaint)
+            yPosition += 40
+
+            canvas2.drawText("CONTRATO DE PRESTACIÓN DE SERVICIOS", PAGE_WIDTH / 2f, yPosition, subtitlePaint)
+            yPosition += 40
+
+            // Texto del contrato
+            val contratoTexto = """
+CONTRATO DE PRESTACIÓN DE SERVICIOS QUE CELEBRAN POR UNA PARTE CARUMA
+SNACKS BAR, REPRESENTADO EN ESTE ACTO POR SU PROPIETARIO, A QUIEN EN LO
+SUCESIVO SE LE DENOMINARÁ "EL PROVEEDOR", Y POR LA OTRA PARTE EL CLIENTE
+CUYO NOMBRE Y DATOS SE ESPECIFICARÁN EN LA HOJA DE SERVICIO, A QUIEN EN LO
+SUCESIVO SE LE DENOMINARÁ "EL CLIENTE", AL TENOR DE LAS SIGUIENTES
+CLÁUSULAS:
+            """.trimIndent()
+
+            yPosition = drawMultilineText(canvas2, contratoTexto, MARGIN.toFloat(), yPosition, normalPaint, PAGE_WIDTH - MARGIN * 2)
+            yPosition += LINE_SPACING
+
+            // CLÁUSULAS
+            canvas2.drawText("CLÁUSULAS", MARGIN.toFloat(), yPosition, boldPaint)
+            yPosition += LINE_SPACING * 2
+
+            // Primera cláusula
+            canvas2.drawText("PRIMERA. - Objeto del contrato.", MARGIN.toFloat(), yPosition, boldPaint)
+            yPosition += LINE_SPACING
+            yPosition = drawMultilineText(
+                canvas2,
+                "El presente contrato tiene por objeto la prestación del servicio de barra de snacks y/o micheladas por parte de EL PROVEEDOR, para el evento detallado en la hoja de servicio correspondiente.",
+                MARGIN.toFloat(),
+                yPosition,
+                normalPaint,
+                PAGE_WIDTH - MARGIN * 2
+            )
+            yPosition += LINE_SPACING
+
+            // Segunda cláusula
+            canvas2.drawText("SEGUNDA.- Duración del servicio.", MARGIN.toFloat(), yPosition, boldPaint)
+            yPosition += LINE_SPACING
+            yPosition = drawMultilineText(
+                canvas2,
+                "El servicio tendrá una duración de 2 horas continuas, contadas a partir de la hora de inicio pactada entre las partes.",
+                MARGIN.toFloat(),
+                yPosition,
+                normalPaint,
+                PAGE_WIDTH - MARGIN * 2
+            )
+            yPosition += LINE_SPACING
+
+            // Tercera cláusula
+            canvas2.drawText("TERCERA.- Anticipo.", MARGIN.toFloat(), yPosition, boldPaint)
+            yPosition += LINE_SPACING
+            yPosition = drawMultilineText(
+                canvas2,
+                "EL CLIENTE deberá entregar un anticipo del 50% del total del servicio para apartar la fecha. El restante deberá liquidarse a más tardar al inicio del evento.",
+                MARGIN.toFloat(),
+                yPosition,
+                normalPaint,
+                PAGE_WIDTH - MARGIN * 2
+            )
+            yPosition += LINE_SPACING
+
+            pdfDocument.finishPage(page2)
+
+            // ==================== PÁGINA 3: CONTINUACIÓN DEL CONTRATO ====================
+            val page3 = pdfDocument.startPage(
+                PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, pageNumber++).create()
+            )
+            val canvas3 = page3.canvas
+            yPosition = MARGIN.toFloat()
+
+            // Cuarta cláusula
+            canvas3.drawText("CUARTA .- Reagendación.", MARGIN.toFloat(), yPosition, boldPaint)
+            yPosition += LINE_SPACING
+            yPosition = drawMultilineText(
+                canvas3,
+                "En caso de que EL CLIENTE necesite reagendar el evento, deberá notificarlo con al menos 5 días naturales de anticipación a la fecha originalmente pactada. El cambio estará sujeto a disponibilidad por parte de EL PROVEEDOR. Solo se permitirá una reagendación por contrato. En caso de no cumplir con este aviso o requerir un segundo cambio, se considerará como cancelación y el anticipo no será reembolsable.",
+                MARGIN.toFloat(),
+                yPosition,
+                normalPaint,
+                PAGE_WIDTH - MARGIN * 2
+            )
+            yPosition += LINE_SPACING
+
+            // Quinta cláusula
+            canvas3.drawText("QUINTA. Cancelaciones.", MARGIN.toFloat(), yPosition, boldPaint)
+            yPosition += LINE_SPACING
+            yPosition = drawMultilineText(
+                canvas3,
+                "En caso de cancelación por parte de EL CLIENTE, el anticipo no será reembolsable bajo ninguna circunstancia.",
+                MARGIN.toFloat(),
+                yPosition,
+                normalPaint,
+                PAGE_WIDTH - MARGIN * 2
+            )
+            yPosition += LINE_SPACING
+
+            // Sexta cláusula
+            canvas3.drawText("SEXTA- Conducta de los invitados.", MARGIN.toFloat(), yPosition, boldPaint)
+            yPosition += LINE_SPACING
+            yPosition = drawMultilineText(
+                canvas3,
+                "En caso de que algún colaborador de CARUMA SNACKS BAR sea molestado o agredido física o verbalmente por parte de los asistentes al evento, EL PROVEEDOR se reserva el derecho de retirar su personal y suspender el servicio sin obligación de reembolso.",
+                MARGIN.toFloat(),
+                yPosition,
+                normalPaint,
+                PAGE_WIDTH - MARGIN * 2
+            )
+            yPosition += LINE_SPACING
+
+            // Séptima cláusula
+            canvas3.drawText("SEPTIMA- Mobiliario.", MARGIN.toFloat(), yPosition, boldPaint)
+            yPosition += LINE_SPACING
+            yPosition = drawMultilineText(
+                canvas3,
+                "En caso de daño, maltrato o pérdida del mobiliario proporcionado por EL PROVEEDOR, EL CLIENTE se compromete a cubrir el 100% del valor del mismo.",
+                MARGIN.toFloat(),
+                yPosition,
+                normalPaint,
+                PAGE_WIDTH - MARGIN * 2
+            )
+            yPosition += LINE_SPACING
+
+            // Novena cláusula (sin octava según el original)
+            canvas3.drawText("NOVENA.- Requerimientos.", MARGIN.toFloat(), yPosition, boldPaint)
+            yPosition += LINE_SPACING
+            yPosition = drawMultilineText(
+                canvas3,
+                "EL CLIENTE se compromete a proporcionar el espacio adecuado y con sombra, acceso a electricidad, y cualquier otro requerimiento previamente acordado para la correcta instalación y operación del servicio.",
+                MARGIN.toFloat(),
+                yPosition,
+                normalPaint,
+                PAGE_WIDTH - MARGIN * 2
+            )
+            yPosition += LINE_SPACING
+
+            // Décima cláusula
+            canvas3.drawText("DECIMA.-Publicidad", MARGIN.toFloat(), yPosition, boldPaint)
+            yPosition += LINE_SPACING
+            yPosition = drawMultilineText(
+                canvas3,
+                "EL CLIENTE autoriza a EL PROVEEDOR a tomar fotografías o videos del servicio para fines promocionales, sin afectar la privacidad de los invitados. En caso de no autorizarlo, deberá indicarlo expresamente.",
+                MARGIN.toFloat(),
+                yPosition,
+                normalPaint,
+                PAGE_WIDTH - MARGIN * 2
+            )
+            yPosition += LINE_SPACING * 3
+
+            // Título final
+            canvas3.drawText("CARUMA SNACKS BAR", PAGE_WIDTH / 2f, yPosition, titlePaint)
+            yPosition += LINE_SPACING * 2
+
+            // Texto de aceptación
+            yPosition = drawMultilineText(
+                canvas3,
+                "EL CLIENTE declara haber leído, entendido y aceptado el presente contrato en todos sus términos, obligándose al cumplimiento del mismo al firmar este documento.",
+                MARGIN.toFloat(),
+                yPosition,
+                normalPaint,
+                PAGE_WIDTH - MARGIN * 2
+            )
+            yPosition += LINE_SPACING * 3
+
+            // Fecha y líneas de firma
+            val fechaActual = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
+            canvas3.drawText("_____________________ $fechaActual  _________________________________", MARGIN.toFloat(), yPosition, normalPaint)
+            yPosition += LINE_SPACING
+            canvas3.drawText("EL PROVEEDOR (CARUMA)                                    EL CLIENTE", MARGIN.toFloat(), yPosition, normalPaint)
+
+            pdfDocument.finishPage(page3)
+
+            // Guardar el PDF
+            val fileName = "Contrato_Cliente_Evento_${evento.id}_${System.currentTimeMillis()}.pdf"
+            val file = File(context.cacheDir, fileName)
+            pdfDocument.writeTo(FileOutputStream(file))
+            pdfDocument.close()
+
+            FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.provider",
+                file
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    /**
+     * PDF para trabajadores (versión simplificada)
+     */
+    fun generateWorkerPdf(
+        context: Context,
+        evento: Evento,
+        cliente: Cliente?,
+        servicio: Servicio?,
+        empleados: List<Usuario>,
+        mobiliarios: List<Mobiliario>,
+        todosLosServicios: List<Servicio>,
+        categoriasMobiliario: List<CategoriaMobiliario>
+    ): Uri? {
+        return try {
+            val pdfDocument = PdfDocument()
+            val page = pdfDocument.startPage(
+                PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, 1).create()
+            )
+            val canvas = page.canvas
+            var yPosition = MARGIN.toFloat()
+
+            val titlePaint = Paint().apply {
+                textSize = 20f
+                isFakeBoldText = true
+                textAlign = Paint.Align.CENTER
+            }
+            val normalPaint = Paint().apply {
+                textSize = 12f
+                textAlign = Paint.Align.LEFT
+            }
+            val boldPaint = Paint().apply {
+                textSize = 12f
+                isFakeBoldText = true
+                textAlign = Paint.Align.LEFT
+            }
+
+            // Título
+            canvas.drawText("CARUMA SNACKS BAR", PAGE_WIDTH / 2f, yPosition, titlePaint)
+            yPosition += 30
+            canvas.drawText("INFORMACIÓN DEL EVENTO - TRABAJADORES", PAGE_WIDTH / 2f, yPosition, titlePaint)
+            yPosition += 40
+
+            // Información del evento
+            canvas.drawText("Evento ID: ${evento.id}", MARGIN.toFloat(), yPosition, boldPaint)
+            yPosition += LINE_SPACING
+            canvas.drawText("Fecha: ${evento.fecha}", MARGIN.toFloat(), yPosition, normalPaint)
+            yPosition += LINE_SPACING
+            canvas.drawText("Horario: ${evento.horaInicio} - ${evento.horaFin}", MARGIN.toFloat(), yPosition, normalPaint)
+            yPosition += LINE_SPACING
+            canvas.drawText("Dirección: ${evento.direccionEvento}", MARGIN.toFloat(), yPosition, normalPaint)
+            yPosition += LINE_SPACING
+            canvas.drawText("Personas: ${evento.numeroPersonas}", MARGIN.toFloat(), yPosition, normalPaint)
+            yPosition += LINE_SPACING * 2
+
+            // Personal asignado
+            canvas.drawText("PERSONAL ASIGNADO:", MARGIN.toFloat(), yPosition, boldPaint)
+            yPosition += LINE_SPACING
+            empleados.forEach { emp ->
+                canvas.drawText("• ${emp.nombre} ${emp.apellidoPaterno} - ${emp.telefono}", MARGIN.toFloat(), yPosition, normalPaint)
+                yPosition += LINE_SPACING
+            }
+            yPosition += LINE_SPACING
+
+            // Mobiliario
+            canvas.drawText("MOBILIARIO:", MARGIN.toFloat(), yPosition, boldPaint)
+            yPosition += LINE_SPACING
+            mobiliarios.forEach { mob ->
+                val categoria = categoriasMobiliario.find { it.id == mob.idCategoria }
+                canvas.drawText("• ${categoria?.nombre ?: "Sin categoría"} - ${mob.color}", MARGIN.toFloat(), yPosition, normalPaint)
+                yPosition += LINE_SPACING
+            }
+            yPosition += LINE_SPACING
+
+            // Observaciones
+            if (evento.detalleServicio.isNotBlank()) {
+                canvas.drawText("OBSERVACIONES:", MARGIN.toFloat(), yPosition, boldPaint)
+                yPosition += LINE_SPACING
+                yPosition = drawMultilineText(canvas, evento.detalleServicio, MARGIN.toFloat(), yPosition, normalPaint, PAGE_WIDTH - MARGIN * 2)
+            }
+
+            pdfDocument.finishPage(page)
+
+            val fileName = "Trabajadores_Evento_${evento.id}_${System.currentTimeMillis()}.pdf"
+            val file = File(context.cacheDir, fileName)
+            pdfDocument.writeTo(FileOutputStream(file))
+            pdfDocument.close()
+
+            FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.provider",
+                file
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    /**
+     * Función auxiliar para dibujar texto multilínea
+     */
+    private fun drawMultilineText(
+        canvas: android.graphics.Canvas,
+        text: String,
+        x: Float,
+        startY: Float,
+        paint: Paint,
+        maxWidth: Int
+    ): Float {
+        var yPosition = startY
+        val palabras = text.split(" ")
+        var lineaActual = ""
+
+        palabras.forEach { palabra ->
+            val testLine = if (lineaActual.isEmpty()) palabra else "$lineaActual $palabra"
+            if (paint.measureText(testLine) > maxWidth) {
+                canvas.drawText(lineaActual, x, yPosition, paint)
+                yPosition += LINE_SPACING
+                lineaActual = palabra
+            } else {
+                lineaActual = testLine
             }
         }
 
-        fun generateClientPdf(
-            context: Context,
-            evento: Evento,
-            cliente: Cliente?,
-            servicio: Servicio?,
-            empleados: List<Usuario>,
-            mobiliarios: List<Mobiliario>,
-            todosLosServicios: List<Servicio> = emptyList(),
-            categoriasMobiliario: List<com.example.gestoreventos.model.CategoriaMobiliario> = emptyList()
-        ): Uri? {
-            return generatePdf(context, evento, cliente, servicio, empleados, mobiliarios, true, todosLosServicios, categoriasMobiliario)
+        if (lineaActual.isNotEmpty()) {
+            canvas.drawText(lineaActual, x, yPosition, paint)
+            yPosition += LINE_SPACING
         }
 
-        fun generateWorkerPdf(
-            context: Context,
-            evento: Evento,
-            cliente: Cliente?,
-            servicio: Servicio?,
-            empleados: List<Usuario>,
-            mobiliarios: List<Mobiliario>,
-            todosLosServicios: List<Servicio> = emptyList(),
-            categoriasMobiliario: List<com.example.gestoreventos.model.CategoriaMobiliario> = emptyList()
-        ): Uri? {
-            return generatePdf(context, evento, cliente, servicio, empleados, mobiliarios, false, todosLosServicios, categoriasMobiliario)
+        return yPosition
+    }
+
+    /**
+     * Compartir el PDF generado - VERSIÓN CORREGIDA
+     */
+    fun sharePdf(context: Context, uri: Uri, fileName: String) {
+        try {
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "application/pdf"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                putExtra(Intent.EXTRA_SUBJECT, "Contrato CARUMA SNACKS BAR")
+                putExtra(Intent.EXTRA_TEXT, "Adjunto el contrato de servicio")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+
+            // Crear el chooser con Intent.createChooser
+            val chooserIntent = Intent.createChooser(intent, "Compartir PDF")
+            chooserIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+            context.startActivity(chooserIntent)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            // Mostrar un mensaje de error al usuario
+            android.widget.Toast.makeText(
+                context,
+                "Error al compartir el PDF: ${e.message}",
+                android.widget.Toast.LENGTH_LONG
+            ).show()
         }
+    }
 
-        private fun generatePdf(
-            context: Context,
-            evento: Evento,
-            cliente: Cliente?,
-            servicio: Servicio?,
-            empleados: List<Usuario>,
-            mobiliarios: List<Mobiliario>,
-            isClientDocument: Boolean,
-            todosLosServicios: List<Servicio> = emptyList(),
-            categoriasMobiliario: List<com.example.gestoreventos.model.CategoriaMobiliario> = emptyList()
-        ): Uri? {
-            try {
-                // Crear archivo temporal
-                val documentType = if (isClientDocument) "Cliente" else "Trabajadores"
-                val fileName = "Caruma_${documentType}_Evento_${evento.id}_${System.currentTimeMillis()}.pdf"
-                val file = File(context.cacheDir, fileName)
+    /**
+     * NUEVA: Función alternativa para compartir específicamente por WhatsApp
+     */
+    fun sharePdfWhatsApp(context: Context, uri: Uri, fileName: String) {
+        try {
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "application/pdf"
+                `package` = "com.whatsapp" // Forzar WhatsApp
+                putExtra(Intent.EXTRA_STREAM, uri)
+                putExtra(Intent.EXTRA_TEXT, "Contrato CARUMA SNACKS BAR")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
 
-                // Crear PDF
-                val writer = PdfWriter(file)
-                val pdf = PdfDocument(writer)
-                val document = Document(pdf)
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            // Si WhatsApp no está instalado o hay error, usar el selector normal
+            sharePdf(context, uri, fileName)
+        }
+    }
 
-                // Configurar documento
-                document.setMargins(40f, 40f, 40f, 40f)
-
-                // Título principal con branding
-                val companyName = Paragraph("CARUMA BARRAS PARA EVENTOS")
-                    .setFontSize(18f)
-                    .setBold()
-                    .setFontColor(COLOR_DORADO)
-                    .setTextAlignment(TextAlignment.CENTER)
-                    .setMarginBottom(5f)
-                document.add(companyName)
-
-                val documentTitle = if (isClientDocument) {
-                    "CONTRATO DE SERVICIO - EVENTO"
-                } else {
-                    "ORDEN DE TRABAJO - EVENTO"
+    /**
+     * NUEVA: Guardar PDF en descargas y notificar al usuario
+     */
+    fun savePdfToDownloads(context: Context, uri: Uri, fileName: String): Boolean {
+        return try {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                // Android 10 y superior - usar MediaStore
+                val contentValues = android.content.ContentValues().apply {
+                    put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+                    put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "application/pdf")
+                    put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, android.os.Environment.DIRECTORY_DOWNLOADS)
                 }
 
-                val title = Paragraph(documentTitle)
-                    .setFontSize(22f)
-                    .setBold()
-                    .setFontColor(COLOR_NEGRO)
-                    .setTextAlignment(TextAlignment.CENTER)
-                    .setMarginBottom(20f)
-                document.add(title)
+                val resolver = context.contentResolver
+                val contentUri = resolver.insert(
+                    android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                    contentValues
+                )
 
-                // Contenido específico según el tipo de documento
-                if (isClientDocument) {
-                    addClientContent(context, document, evento, cliente, servicio, empleados, mobiliarios, todosLosServicios, categoriasMobiliario)
-                } else {
-                    addWorkerContent(context, document, evento, cliente, servicio, empleados, mobiliarios, todosLosServicios, categoriasMobiliario)
+                contentUri?.let { targetUri ->
+                    resolver.openOutputStream(targetUri)?.use { outputStream ->
+                        resolver.openInputStream(uri)?.use { inputStream ->
+                            inputStream.copyTo(outputStream)
+                        }
+                    }
+
+                    android.widget.Toast.makeText(
+                        context,
+                        "PDF guardado en Descargas",
+                        android.widget.Toast.LENGTH_LONG
+                    ).show()
+                    true
+                } ?: false
+            } else {
+                // Android 9 y anteriores
+                val downloadsDir = android.os.Environment.getExternalStoragePublicDirectory(
+                    android.os.Environment.DIRECTORY_DOWNLOADS
+                )
+                val targetFile = File(downloadsDir, fileName)
+
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    targetFile.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
                 }
 
-                // Pie de página con información de Caruma Barras
-                addFooter(document, isClientDocument)
-
-                // Cerrar documento
-                document.close()
-
-                // Retornar URI del archivo
-                return FileProvider.getUriForFile(
+                // Notificar al sistema que hay un nuevo archivo
+                android.media.MediaScannerConnection.scanFile(
                     context,
-                    "${context.packageName}.fileprovider",
-                    file
+                    arrayOf(targetFile.absolutePath),
+                    arrayOf("application/pdf"),
+                    null
                 )
 
-            } catch (e: Exception) {
-                e.printStackTrace()
-                return null
+                android.widget.Toast.makeText(
+                    context,
+                    "PDF guardado en Descargas",
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+                true
             }
-        }
-
-        private fun addHeader(context: Context, document: Document) {
-            // Logo grande y centrado (único logo)
-            try {
-                val inputStream = context.resources.openRawResource(R.raw.logo_caruma)
-                val logoBytes = inputStream.readBytes()
-                inputStream.close()
-                val logo = ImageDataFactory.create(logoBytes)
-                val logoImage = Image(logo)
-                logoImage.setWidth(220f)
-                logoImage.setHeight(110f)
-                logoImage.setHorizontalAlignment(HorizontalAlignment.CENTER)
-                document.add(logoImage)
-                document.add(Paragraph("").setMarginBottom(16f))
-            } catch (e: Exception) {
-                val placeholderText = Paragraph("CARUMA BARRAS")
-                    .setFontSize(24f)
-                    .setBold()
-                    .setTextAlignment(TextAlignment.CENTER)
-                    .setMarginBottom(16f)
-                document.add(placeholderText)
-            }
-        }
-
-        private fun addSectionTitle(document: Document, title: String) {
-            // Título de sección en dorado, mayúsculas
-            val sectionTitle = Paragraph(title.uppercase())
-                .setFontSize(16f)
-                .setBold()
-                .setFontColor(COLOR_DORADO)
-                .setTextAlignment(TextAlignment.LEFT)
-                .setMarginTop(18f)
-                .setMarginBottom(8f)
-            document.add(sectionTitle)
-            // Línea dorada
-            val separator = Paragraph("\u2500".repeat(40))
-                .setFontColor(COLOR_DORADO)
-                .setFontSize(10f)
-                .setMarginBottom(10f)
-            document.add(separator)
-        }
-
-        private fun addFooter(document: Document, isClientDocument: Boolean) {
-            // Pie de página con fondo negro y texto blanco
-            val footerBg = Paragraph("")
-                .setBackgroundColor(COLOR_NEGRO)
-                .setMinHeight(18f)
-            document.add(footerBg)
-            val companyInfo = Paragraph("CARUMA BARRAS PARA EVENTOS")
-                .setFontSize(12f)
-                .setBold()
-                .setFontColor(COLOR_BLANCO)
-                .setBackgroundColor(COLOR_NEGRO)
-                .setTextAlignment(TextAlignment.CENTER)
-                .setMarginTop(-18f)
-            document.add(companyInfo)
-            val contactInfo = Paragraph("Tel: +52 2292783543 y +52 2292783713 | Email: barrascaruma@gmail.com")
-                .setFontSize(10f)
-                .setFontColor(COLOR_BLANCO)
-                .setBackgroundColor(COLOR_NEGRO)
-                .setTextAlignment(TextAlignment.CENTER)
-                .setMarginTop(0f)
-            document.add(contactInfo)
-        }
-
-        private fun addStyledTable(document: Document, rows: List<Pair<String, String>>) {
-            val table = Table(2).useAllAvailableWidth()
-            table.setWidth(UnitValue.createPercentValue(100f))
-            table.setBorder(com.itextpdf.layout.borders.SolidBorder(COLOR_DORADO, 1f))
-            var isGray = false
-            for ((label, value) in rows) {
-                val labelCell = com.itextpdf.layout.element.Cell().add(Paragraph(label).setBold())
-                val valueCell = com.itextpdf.layout.element.Cell().add(Paragraph(value))
-                if (isGray) {
-                    labelCell.setBackgroundColor(COLOR_GRIS_SUAVE)
-                    valueCell.setBackgroundColor(COLOR_GRIS_SUAVE)
-                }
-                labelCell.setBorder(com.itextpdf.layout.borders.SolidBorder(COLOR_DORADO, 0.5f))
-                valueCell.setBorder(com.itextpdf.layout.borders.SolidBorder(COLOR_DORADO, 0.5f))
-                table.addCell(labelCell)
-                table.addCell(valueCell)
-                isGray = !isGray
-            }
-            document.add(table)
-        }
-
-        private fun addClientContent(
-            context: Context,
-            document: Document,
-            evento: Evento,
-            cliente: Cliente?,
-            servicio: Servicio?,
-            empleados: List<Usuario>,
-            mobiliarios: List<Mobiliario>,
-            todosLosServicios: List<Servicio> = emptyList(),
-            categoriasMobiliario: List<com.example.gestoreventos.model.CategoriaMobiliario> = emptyList()
-        ) {
-            addHeader(context, document)
-
-            // Información del Cliente
-            addSectionTitle(document, "Información del Cliente")
-            addStyledTable(document, listOf(
-                "Nombre del Cliente" to (cliente?.nombre ?: "No especificado"),
-                "Dirección del Evento" to evento.direccionEvento
-            ))
-
-            addSectionTitle(document, "Detalles del Evento")
-            addStyledTable(document, listOf(
-                "Fecha" to formatearFecha(evento.fecha),
-                "Horario" to "${evento.horaInicio} - ${evento.horaFin}",
-                "Número de Personas" to "${evento.numeroPersonas} personas",
-                "Costo Total del Evento" to "Por definir"
-            ) + if (evento.detalleServicio.isNotBlank()) listOf("Comentarios Especiales" to evento.detalleServicio) else emptyList())
-
-            // Servicios con categorías y opciones seleccionadas
-            if (evento.serviciosSeleccionados.isNotEmpty()) {
-                addSectionTitle(document, "Servicios Contratados")
-
-                val serviciosTable = Table(2).useAllAvailableWidth()
-                serviciosTable.setWidth(UnitValue.createPercentValue(100f))
-                serviciosTable.setBorder(com.itextpdf.layout.borders.SolidBorder(COLOR_DORADO, 1f))
-
-                evento.serviciosSeleccionados.forEach { servicioSeleccionado ->
-                    // Buscar el nombre del servicio
-                    val nombreServicio = todosLosServicios.find { it.id == servicioSeleccionado.idServicio }?.nombre
-                        ?: "Servicio ${servicioSeleccionado.idServicio}"
-
-                    // Crear texto con categorías y opciones
-                    val categoriasTexto = servicioSeleccionado.categoriasSeleccionadas.joinToString("\n") { categoria ->
-                        "  - ${categoria.nombreCategoria}: ${categoria.opcionesSeleccionadas.joinToString(", ")}"
-                    }
-
-                    val servicioCell = com.itextpdf.layout.element.Cell().add(
-                        Paragraph(nombreServicio).setBold().setFontSize(12f)
-                    )
-                    val detallesCell = com.itextpdf.layout.element.Cell().add(
-                        Paragraph(categoriasTexto).setFontSize(11f)
-                    )
-
-                    servicioCell.setBorder(com.itextpdf.layout.borders.SolidBorder(COLOR_DORADO, 0.5f))
-                    detallesCell.setBorder(com.itextpdf.layout.borders.SolidBorder(COLOR_DORADO, 0.5f))
-
-                    serviciosTable.addCell(servicioCell)
-                    serviciosTable.addCell(detallesCell)
-                }
-
-                document.add(serviciosTable)
-            } else if (servicio != null) {
-                // Fallback para servicios sin categorías (formato anterior)
-                addSectionTitle(document, "Servicio Contratado")
-                addStyledTable(document, listOf(
-                    "Tipo de Servicio" to servicio.nombre,
-                    "Descripción" to servicio.descripcion
-                ))
-            }
-
-            addSectionTitle(document, "Información de Contacto")
-            addStyledTable(document, listOf(
-                "Teléfonos" to "+52 2292783543 y +52 2292783713",
-                "Correo" to "barrascaruma@gmail.com"
-            ))
-            addSectionTitle(document, "Términos y Condiciones")
-            document.add(
-                Paragraph(
-                    "• El servicio incluye la preparación, montaje y desmontaje del evento\n" +
-                            "• El personal llegará 30 minutos antes del horario acordado\n" +
-                            "• Se requiere acceso al lugar 1 hora antes del evento\n" +
-                            "• Cualquier cambio debe ser comunicado con 24 horas de anticipación\n" +
-                            "• El pago debe realizarse según los términos acordados"
-                ).setFontSize(11f).setMarginBottom(20f)
-            )
-        }
-
-        private fun addWorkerContent(
-            context: Context,
-            document: Document,
-            evento: Evento,
-            cliente: Cliente?,
-            servicio: Servicio?,
-            empleados: List<Usuario>,
-            mobiliarios: List<Mobiliario>,
-            todosLosServicios: List<Servicio> = emptyList(),
-            categoriasMobiliario: List<com.example.gestoreventos.model.CategoriaMobiliario> = emptyList()
-        ) {
-            addHeader(context, document)
-
-            // Información del Cliente
-            addSectionTitle(document, "Información del Cliente")
-            addStyledTable(document, listOf(
-                "Nombre del Cliente" to (cliente?.nombre ?: "No especificado"),
-                "Dirección del Evento" to evento.direccionEvento
-            ))
-
-            addSectionTitle(document, "Información del Evento")
-            addStyledTable(document, listOf(
-                "ID del Evento" to evento.id,
-                "Fecha" to formatearFecha(evento.fecha),
-                "Horario de Trabajo" to "${evento.horaInicio} - ${evento.horaFin}",
-                "Llegada Requerida" to "30 minutos antes",
-                "Capacidad" to "${evento.numeroPersonas} personas"
-            ) + if (evento.detalleServicio.isNotBlank()) listOf("Notas Especiales" to evento.detalleServicio) else emptyList())
-
-            // Servicios con categorías y opciones seleccionadas
-            if (evento.serviciosSeleccionados.isNotEmpty()) {
-                addSectionTitle(document, "Servicios a Realizar")
-
-                val serviciosTable = Table(2).useAllAvailableWidth()
-                serviciosTable.setWidth(UnitValue.createPercentValue(100f))
-                serviciosTable.setBorder(com.itextpdf.layout.borders.SolidBorder(COLOR_DORADO, 1f))
-
-                evento.serviciosSeleccionados.forEach { servicioSeleccionado ->
-                    // Buscar el nombre del servicio
-                    val nombreServicio = todosLosServicios.find { it.id == servicioSeleccionado.idServicio }?.nombre
-                        ?: "Servicio ${servicioSeleccionado.idServicio}"
-
-                    // Crear texto con categorías y opciones
-                    val categoriasTexto = servicioSeleccionado.categoriasSeleccionadas.joinToString("\n") { categoria ->
-                        "  - ${categoria.nombreCategoria}: ${categoria.opcionesSeleccionadas.joinToString(", ")}"
-                    }
-
-                    val servicioCell = com.itextpdf.layout.element.Cell().add(
-                        Paragraph(nombreServicio).setBold().setFontSize(12f)
-                    )
-                    val detallesCell = com.itextpdf.layout.element.Cell().add(
-                        Paragraph(categoriasTexto).setFontSize(11f)
-                    )
-
-                    servicioCell.setBorder(com.itextpdf.layout.borders.SolidBorder(COLOR_DORADO, 0.5f))
-                    detallesCell.setBorder(com.itextpdf.layout.borders.SolidBorder(COLOR_DORADO, 0.5f))
-
-                    serviciosTable.addCell(servicioCell)
-                    serviciosTable.addCell(detallesCell)
-                }
-
-                document.add(serviciosTable)
-            } else if (servicio != null) {
-                // Fallback para servicios sin categorías (formato anterior)
-                addSectionTitle(document, "Servicio a Realizar")
-                addStyledTable(document, listOf(
-                    "Tipo de Servicio" to servicio.nombre,
-                    "Descripción" to servicio.descripcion
-                ))
-            }
-
-            if (empleados.isNotEmpty()) {
-                addSectionTitle(document, "Equipo de Trabajo (${empleados.size} personas)")
-                addStyledTable(document, empleados.map {
-                    "Compañero" to "${it.nombre} ${it.apellidoPaterno} ${it.apellidoMaterno}"
-                })
-            }
-            if (mobiliarios.isNotEmpty()) {
-                addSectionTitle(document, "Mobiliario a Transportar (${mobiliarios.size} items)")
-                addStyledTable(document, mobiliarios.map {
-                    val categoria = categoriasMobiliario.find { cat -> cat.id == it.idCategoria }
-                    val nombreCategoria = categoria?.nombre ?: "Sin categoría"
-                    "Item" to "$nombreCategoria - Color: ${it.color}"
-                })
-            }
-            addSectionTitle(document, "Información de Contacto")
-            addStyledTable(document, listOf(
-                "Teléfonos" to "+52 2292783543 y +52 2292783713",
-                "Correo" to "barrascaruma@gmail.com"
-            ))
-            addSectionTitle(document, "Checklist de Preparación")
-            document.add(
-                Paragraph(
-                    "□ Verificar equipamiento completo\n" +
-                            "□ Confirmar horario de llegada\n" +
-                            "□ Revisar ruta al lugar del evento\n" +
-                            "□ Cargar teléfono completamente\n" +
-                            "□ Llevar uniforme de Caruma Barras\n" +
-                            "□ Verificar lista de mobiliario\n" +
-                            "□ Contactar supervisor si hay dudas"
-                ).setFontSize(11f).setMarginBottom(20f)
-            )
-        }
-
-        fun sharePdf(context: Context, pdfUri: Uri, fileName: String) {
-            try {
-                val intent = Intent(Intent.ACTION_SEND).apply {
-                    type = "application/pdf"
-                    putExtra(Intent.EXTRA_STREAM, pdfUri)
-                    putExtra(Intent.EXTRA_SUBJECT, "Reporte de Evento - Caruma Barras")
-                    putExtra(Intent.EXTRA_TEXT, "Adjunto el reporte del evento: $fileName")
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                }
-
-                val chooser = Intent.createChooser(intent, "Compartir PDF")
-                chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                context.startActivity(chooser)
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            android.widget.Toast.makeText(
+                context,
+                "Error al guardar PDF: ${e.message}",
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+            false
         }
     }
 }

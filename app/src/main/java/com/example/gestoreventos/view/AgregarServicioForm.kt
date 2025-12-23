@@ -22,6 +22,7 @@ import com.example.gestoreventos.model.Servicio
 import com.example.gestoreventos.model.ChecklistCategoria
 import com.example.gestoreventos.viewmodel.ServicioViewModel
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AgregarServicioForm(
     modifier: Modifier = Modifier,
@@ -42,11 +43,14 @@ fun AgregarServicioForm(
     var nuevaOpcion by remember { mutableStateOf("") }
     var opcionesActuales by remember { mutableStateOf(emptyList<String>()) }
 
-    // NUEVO: Estados para el checklist
+    // NUEVO: Estados para el checklist - MEJORADO PARA AGRUPAR
     var mostrarFormularioChecklist by remember { mutableStateOf(false) }
     var nombreCategoriaChecklist by remember { mutableStateOf("") }
     var nuevoItemChecklist by remember { mutableStateOf("") }
     var itemsChecklistActuales by remember { mutableStateOf(emptyList<String>()) }
+
+    // NUEVO: Lista desplegable para categorías existentes
+    var categoriaChecklistExpandida by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier
@@ -338,7 +342,7 @@ fun AgregarServicioForm(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // NUEVA SECCIÓN: Checklist Template
+        // NUEVA SECCIÓN: Checklist Template - MEJORADO PARA AGRUPAR
         Card(
             modifier = Modifier.fillMaxWidth(),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -373,7 +377,7 @@ fun AgregarServicioForm(
                 ) {
                     Icon(Icons.Default.Add, contentDescription = "Agregar categoría")
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(if (mostrarFormularioChecklist) "Ocultar Formulario" else "Agregar Categoría de Checklist")
+                    Text(if (mostrarFormularioChecklist) "Ocultar Formulario" else "Agregar Items al Checklist")
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -387,6 +391,60 @@ fun AgregarServicioForm(
                         )
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
+                            // MEJORADO: Dropdown para seleccionar categoría existente o crear nueva
+                            Text(
+                                "Selecciona una categoría:",
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontWeight = FontWeight.Bold
+                                ),
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+
+                            // Obtener categorías únicas existentes
+                            val categoriasExistentes = checklistTemplate.map { it.nombre }.distinct()
+
+                            if (categoriasExistentes.isNotEmpty()) {
+                                // Dropdown de categorías existentes
+                                ExposedDropdownMenuBox(
+                                    expanded = categoriaChecklistExpandida,
+                                    onExpandedChange = { categoriaChecklistExpandida = !categoriaChecklistExpandida }
+                                ) {
+                                    OutlinedTextField(
+                                        value = nombreCategoriaChecklist,
+                                        onValueChange = { },
+                                        readOnly = true,
+                                        label = { Text("Categoría (selecciona o escribe nueva)") },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .menuAnchor(),
+                                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoriaChecklistExpandida) }
+                                    )
+
+                                    ExposedDropdownMenu(
+                                        expanded = categoriaChecklistExpandida,
+                                        onDismissRequest = { categoriaChecklistExpandida = false }
+                                    ) {
+                                        categoriasExistentes.forEach { categoria ->
+                                            DropdownMenuItem(
+                                                text = { Text(categoria) },
+                                                onClick = {
+                                                    nombreCategoriaChecklist = categoria
+                                                    categoriaChecklistExpandida = false
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    "O escribe una nueva categoría:",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                            }
+
                             OutlinedTextField(
                                 value = nombreCategoriaChecklist,
                                 onValueChange = { nombreCategoriaChecklist = it },
@@ -466,12 +524,33 @@ fun AgregarServicioForm(
 
                             Button(
                                 onClick = {
-                                    if (nombreCategoriaChecklist.isNotBlank()) {
-                                        val nuevaCategoriaChecklist = ChecklistCategoria(
-                                            nombre = nombreCategoriaChecklist.trim(),
-                                            items = itemsChecklistActuales.toList()
-                                        )
-                                        checklistTemplate = checklistTemplate + nuevaCategoriaChecklist
+                                    if (nombreCategoriaChecklist.isNotBlank() && itemsChecklistActuales.isNotEmpty()) {
+                                        // MEJORADO: Buscar si ya existe una categoría con ese nombre
+                                        val categoriaExistente = checklistTemplate.find {
+                                            it.nombre.equals(nombreCategoriaChecklist.trim(), ignoreCase = true)
+                                        }
+
+                                        if (categoriaExistente != null) {
+                                            // Agregar items a la categoría existente
+                                            val categoriasActualizadas = checklistTemplate.map { categoria ->
+                                                if (categoria.nombre.equals(nombreCategoriaChecklist.trim(), ignoreCase = true)) {
+                                                    categoria.copy(
+                                                        items = (categoria.items + itemsChecklistActuales).distinct()
+                                                    )
+                                                } else {
+                                                    categoria
+                                                }
+                                            }
+                                            checklistTemplate = categoriasActualizadas
+                                        } else {
+                                            // Crear nueva categoría
+                                            val nuevaCategoriaChecklist = ChecklistCategoria(
+                                                nombre = nombreCategoriaChecklist.trim(),
+                                                items = itemsChecklistActuales.toList()
+                                            )
+                                            checklistTemplate = checklistTemplate + nuevaCategoriaChecklist
+                                        }
+
                                         nombreCategoriaChecklist = ""
                                         nuevoItemChecklist = ""
                                         itemsChecklistActuales = emptyList()
@@ -479,14 +558,14 @@ fun AgregarServicioForm(
                                     }
                                 },
                                 modifier = Modifier.fillMaxWidth(),
-                                enabled = nombreCategoriaChecklist.isNotBlank(),
+                                enabled = nombreCategoriaChecklist.isNotBlank() && itemsChecklistActuales.isNotEmpty(),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = MaterialTheme.colorScheme.tertiary
                                 )
                             ) {
                                 Icon(Icons.Default.Check, contentDescription = "Confirmar")
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Confirmar Categoría")
+                                Text("Confirmar Items")
                             }
                         }
                     }

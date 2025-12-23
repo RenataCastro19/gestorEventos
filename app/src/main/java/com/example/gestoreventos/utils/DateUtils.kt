@@ -58,4 +58,20 @@ object DateUtils {
             fecha
         }
     }
+    fun parseFecha(fecha: String): Calendar {
+        return try {
+            val partes = fecha.split("/")
+            Calendar.getInstance().apply {
+                set(Calendar.DAY_OF_MONTH, partes[0].toInt())
+                set(Calendar.MONTH, partes[1].toInt() - 1)
+                set(Calendar.YEAR, partes[2].toInt())
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }
+        } catch (e: Exception) {
+            Calendar.getInstance()
+        }
+    }
 }

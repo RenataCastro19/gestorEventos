@@ -35,23 +35,12 @@ import com.example.gestoreventos.viewmodel.*
 import com.example.gestoreventos.ui.theme.BrandGold
 import androidx.lifecycle.viewmodel.compose.viewModel
 import java.util.*
+import com.example.gestoreventos.utils.DateUtils
+
 
 // Funciones auxiliares (definidas al inicio para que estén disponibles)
 fun parseFecha(fecha: String): Calendar {
-    return try {
-        val partes = fecha.split("/")
-        val calendar = Calendar.getInstance()
-        calendar.set(Calendar.DAY_OF_MONTH, partes[0].toInt())
-        calendar.set(Calendar.MONTH, partes[1].toInt() - 1)
-        calendar.set(Calendar.YEAR, partes[2].toInt())
-        calendar.set(Calendar.HOUR_OF_DAY, 0)
-        calendar.set(Calendar.MINUTE, 0)
-        calendar.set(Calendar.SECOND, 0)
-        calendar.set(Calendar.MILLISECOND, 0)
-        calendar
-    } catch (e: Exception) {
-        Calendar.getInstance()
-    }
+    return DateUtils.parseFecha(fecha)
 }
 
 fun getMonthYearString(calendar: Calendar): String {
@@ -461,7 +450,6 @@ fun ModernCalendarDay(
         }
     }
 }
-
 @Composable
 fun ModernEventSection(
     currentMonth: Calendar,
@@ -470,11 +458,21 @@ fun ModernEventSection(
     primaryColor: Color,
     onEventClick: (Evento) -> Unit
 ) {
+    // MODIFICADO: Filtrar eventos del mes Y que no hayan pasado
+    val hoy = Calendar.getInstance().apply {
+        set(Calendar.HOUR_OF_DAY, 0)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+    }
+
     val eventosDelMes = eventos.filter { evento ->
         try {
             val eventoDate = parseFecha(evento.fecha)
+            // Verificar que sea del mes actual Y que no haya pasado
             eventoDate.get(Calendar.YEAR) == currentMonth.get(Calendar.YEAR) &&
-                    eventoDate.get(Calendar.MONTH) == currentMonth.get(Calendar.MONTH)
+                    eventoDate.get(Calendar.MONTH) == currentMonth.get(Calendar.MONTH) &&
+                    !eventoDate.before(hoy) // NUEVO: Solo eventos futuros o de hoy
         } catch (e: Exception) {
             false
         }
@@ -507,7 +505,7 @@ fun ModernEventSection(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Eventos del mes",
+                    text = "Eventos próximos", // MODIFICADO: Cambiar texto
                     style = MaterialTheme.typography.headlineSmall.copy(
                         fontWeight = FontWeight.Bold,
                         color = primaryColor
@@ -571,7 +569,7 @@ fun ModernEmptyState(primaryColor: Color) {
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = "No hay eventos programados",
+            text = "No hay eventos próximos", // MODIFICADO
             style = MaterialTheme.typography.titleMedium.copy(
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
@@ -580,7 +578,7 @@ fun ModernEmptyState(primaryColor: Color) {
         )
 
         Text(
-            text = "Los eventos del mes aparecerán aquí",
+            text = "Los eventos futuros del mes aparecerán aquí", // MODIFICADO
             style = MaterialTheme.typography.bodyMedium.copy(
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
             ),
@@ -588,7 +586,6 @@ fun ModernEmptyState(primaryColor: Color) {
         )
     }
 }
-
 @Composable
 fun ModernEventoCard(
     evento: Evento,

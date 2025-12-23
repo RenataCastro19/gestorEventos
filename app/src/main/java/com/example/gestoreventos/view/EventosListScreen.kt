@@ -1,5 +1,6 @@
 package com.example.gestoreventos.view
 
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -282,12 +283,13 @@ fun EventosListScreen(
     }
 }
 
+
 @Composable
 fun ElegantEventoItem(
     evento: Evento,
     onEditarClick: (String) -> Unit,
     onItemClick: () -> Unit,
-    onChecklistClick: (String) -> Unit, // NUEVO
+    onChecklistClick: (String) -> Unit,
     currentUser: Usuario? = null,
     isEventoPasado: Boolean = false
 ) {
@@ -322,6 +324,7 @@ fun ElegantEventoItem(
         Column(
             modifier = Modifier.padding(20.dp)
         ) {
+            // HEADER: ID y badge de personas
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -362,77 +365,47 @@ fun ElegantEventoItem(
                     }
                 }
 
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Botón de editar (solo para admin y super admin, y solo para eventos futuros)
-                    if ((currentUser?.rol == "admin" || currentUser?.rol == "super_admin") && !isEventoPasado) {
-                        IconButton(
-                            onClick = { onEditarClick(evento.id) },
-                            modifier = Modifier
-                                .size(36.dp)
-                                .background(
-                                    color = BrandGold.copy(alpha = 0.1f),
-                                    shape = RoundedCornerShape(8.dp)
-                                )
-                                .border(
-                                    width = 1.dp,
-                                    color = BrandGold,
-                                    shape = RoundedCornerShape(8.dp)
-                                )
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = "Editar evento",
-                                tint = BrandGold,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-
-                    // Indicador de personas
-                    Card(
-                        modifier = Modifier
-                            .border(
-                                width = 1.dp,
-                                color = if (isEventoPasado)
-                                    MaterialTheme.colorScheme.error
-                                else
-                                    BrandGold,
-                                shape = RoundedCornerShape(8.dp)
-                            ),
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (isEventoPasado)
-                                MaterialTheme.colorScheme.error.copy(alpha = 0.1f)
+                // Indicador de personas
+                Card(
+                    modifier = Modifier
+                        .border(
+                            width = 1.dp,
+                            color = if (isEventoPasado)
+                                MaterialTheme.colorScheme.error
                             else
-                                BrandGold.copy(alpha = 0.1f)
+                                BrandGold,
+                            shape = RoundedCornerShape(8.dp)
                         ),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text(
-                            text = "${evento.numeroPersonas} personas",
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = if (isEventoPasado)
-                                    MaterialTheme.colorScheme.error
-                                else
-                                    BrandGold
-                            ),
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                        )
-                    }
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isEventoPasado)
+                            MaterialTheme.colorScheme.error.copy(alpha = 0.1f)
+                        else
+                            BrandGold.copy(alpha = 0.1f)
+                    ),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        text = "${evento.numeroPersonas} personas",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = if (isEventoPasado)
+                                MaterialTheme.colorScheme.error
+                            else
+                                BrandGold
+                        ),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
                 }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Información principal
+            // INFORMACIÓN PRINCIPAL: Fecha y Horario
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "Fecha",
                         style = MaterialTheme.typography.bodySmall.copy(
@@ -449,6 +422,9 @@ fun ElegantEventoItem(
                                 MaterialTheme.colorScheme.onSurface
                         )
                     )
+                }
+
+                Column(horizontalAlignment = Alignment.End) {
                     Text(
                         text = "Horario",
                         style = MaterialTheme.typography.bodySmall.copy(
@@ -470,7 +446,7 @@ fun ElegantEventoItem(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Información adicional
+            // DIRECCIÓN (sin detalles)
             Column {
                 Text(
                     text = "Dirección",
@@ -482,23 +458,71 @@ fun ElegantEventoItem(
                     text = evento.direccionEvento,
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontWeight = FontWeight.Medium
-                    )
+                    ),
+                    maxLines = 2 // Limitar a 2 líneas
                 )
+            }
 
-                Spacer(modifier = Modifier.height(8.dp))
+            // BOTONES ABAJO (solo para eventos futuros)
+            if (!isEventoPasado) {
+                Spacer(modifier = Modifier.height(16.dp))
 
-                Text(
-                    text = "Detalles",
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                    )
-                )
-                Text(
-                    text = evento.detalleServicio,
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        fontWeight = FontWeight.Medium
-                    )
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Botón de Checklist (siempre visible para eventos futuros)
+                    Button(
+                        onClick = { onChecklistClick(evento.id) },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF4CAF50)
+                        ),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = "Checklist",
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            "Checklist",
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        )
+                    }
+
+                    // Botón de Editar (solo para admin y super admin)
+                    if (currentUser?.rol == "admin" || currentUser?.rol == "super_admin") {
+                        Button(
+                            onClick = { onEditarClick(evento.id) },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(44.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = BrandGold
+                            ),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Editar",
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "Editar",
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            )
+                        }
+                    }
+                }
             }
         }
     }
