@@ -55,6 +55,7 @@ fun EventosListScreen(
     onAgregarEventoClick: () -> Unit = {},
     onEditarEventoClick: (String) -> Unit = {},
     onCalendarioClick: () -> Unit = {},
+    onChecklistClick: (String) -> Unit = {}, // NUEVO: Callback para abrir checklist
     currentUser: Usuario? = null,
     viewModel: SuperAdminViewModel = SuperAdminViewModel()
 ) {
@@ -71,16 +72,15 @@ fun EventosListScreen(
     var filtroSeleccionado by remember { mutableStateOf("Todos los Eventos") }
     val currentUserId = currentUser?.id
 
-    // Filtrado estable usando derivedStateOf para evitar parpadeo
+    // Filtrado y ordenamiento estable usando derivedStateOf
     val eventosFiltrados by remember {
         derivedStateOf {
             if (eventos.isEmpty()) {
                 emptyList()
             } else {
-                when (filtroSeleccionado) {
+                val eventosFiltro = when (filtroSeleccionado) {
                     "Mis Eventos" -> {
                         if (currentUserId != null) {
-                            // Para todos los roles: mostrar solo eventos donde el usuario está asignado
                             eventos.filter { evento ->
                                 !DateUtils.isEventoPasado(evento) &&
                                         evento.listaIdsEmpleados.contains(currentUserId)
@@ -90,7 +90,12 @@ fun EventosListScreen(
                         }
                     }
                     "Eventos Pasados" -> eventos.filter { DateUtils.isEventoPasado(it) }
-                    else -> eventos.filter { !DateUtils.isEventoPasado(it) } // "Todos los Eventos"
+                    else -> eventos.filter { !DateUtils.isEventoPasado(it) }
+                }
+
+                // NUEVO: Ordenar por fecha - de más próximo a más lejano
+                eventosFiltro.sortedBy { evento ->
+                    DateUtils.parseFechaParaOrdenar(evento.fecha)
                 }
             }
         }
@@ -255,6 +260,7 @@ fun EventosListScreen(
                     evento = evento,
                     onEditarClick = onEditarEventoClick,
                     onItemClick = { eventoSeleccionado = evento },
+                    onChecklistClick = onChecklistClick, // NUEVO
                     currentUser = currentUser,
                     isEventoPasado = DateUtils.isEventoPasado(evento)
                 )
@@ -281,6 +287,7 @@ fun ElegantEventoItem(
     evento: Evento,
     onEditarClick: (String) -> Unit,
     onItemClick: () -> Unit,
+    onChecklistClick: (String) -> Unit, // NUEVO
     currentUser: Usuario? = null,
     isEventoPasado: Boolean = false
 ) {

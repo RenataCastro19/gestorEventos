@@ -19,6 +19,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.gestoreventos.model.CategoriaServicio
 import com.example.gestoreventos.model.Servicio
+import com.example.gestoreventos.model.ChecklistCategoria
 import com.example.gestoreventos.viewmodel.ServicioViewModel
 
 @Composable
@@ -32,6 +33,7 @@ fun AgregarServicioForm(
     var descripcion by remember { mutableStateOf(servicioEditar?.descripcion ?: "") }
     var precioTexto by remember { mutableStateOf(servicioEditar?.precioPorPersona?.toString() ?: "") }
     var categoriasConfirmadas by remember { mutableStateOf(servicioEditar?.categorias?.toList() ?: emptyList()) }
+    var checklistTemplate by remember { mutableStateOf(servicioEditar?.checklistTemplate?.toList() ?: emptyList()) }
     var mensaje by remember { mutableStateOf("") }
 
     // Estados para el formulario de categoría actual
@@ -39,6 +41,12 @@ fun AgregarServicioForm(
     var nombreCategoriaActual by remember { mutableStateOf("") }
     var nuevaOpcion by remember { mutableStateOf("") }
     var opcionesActuales by remember { mutableStateOf(emptyList<String>()) }
+
+    // NUEVO: Estados para el checklist
+    var mostrarFormularioChecklist by remember { mutableStateOf(false) }
+    var nombreCategoriaChecklist by remember { mutableStateOf("") }
+    var nuevoItemChecklist by remember { mutableStateOf("") }
+    var itemsChecklistActuales by remember { mutableStateOf(emptyList<String>()) }
 
     Column(
         modifier = modifier
@@ -102,7 +110,7 @@ fun AgregarServicioForm(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // Sección de categorías
+        // Sección de categorías (código existente - sin cambios)
         Card(
             modifier = Modifier.fillMaxWidth(),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -116,12 +124,10 @@ fun AgregarServicioForm(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Botón para mostrar/ocultar formulario de categoría
                 Button(
                     onClick = {
                         mostrarFormularioCategoria = !mostrarFormularioCategoria
                         if (mostrarFormularioCategoria) {
-                            // Limpiar el formulario al abrir
                             nombreCategoriaActual = ""
                             nuevaOpcion = ""
                             opcionesActuales = mutableListOf()
@@ -139,7 +145,6 @@ fun AgregarServicioForm(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Formulario para agregar nueva categoría
                 if (mostrarFormularioCategoria) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
@@ -149,7 +154,6 @@ fun AgregarServicioForm(
                         )
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
-                            // Nombre de la categoría
                             OutlinedTextField(
                                 value = nombreCategoriaActual,
                                 onValueChange = { nombreCategoriaActual = it },
@@ -160,7 +164,6 @@ fun AgregarServicioForm(
 
                             Spacer(modifier = Modifier.height(16.dp))
 
-                            // Campo para agregar opciones
                             OutlinedTextField(
                                 value = nuevaOpcion,
                                 onValueChange = { nuevaOpcion = it },
@@ -171,7 +174,6 @@ fun AgregarServicioForm(
 
                             Spacer(modifier = Modifier.height(8.dp))
 
-                            // Botón confirmar opción
                             Button(
                                 onClick = {
                                     if (nuevaOpcion.isNotBlank()) {
@@ -185,7 +187,6 @@ fun AgregarServicioForm(
                                 Text("Agregar Opción")
                             }
 
-                            // Lista de opciones agregadas
                             if (opcionesActuales.isNotEmpty()) {
                                 Spacer(modifier = Modifier.height(12.dp))
                                 Text(
@@ -230,25 +231,17 @@ fun AgregarServicioForm(
 
                             Spacer(modifier = Modifier.height(16.dp))
 
-                            // Botón confirmar categoría
                             Button(
                                 onClick = {
                                     if (nombreCategoriaActual.isNotBlank()) {
-                                        // Crear la nueva categoría
                                         val nuevaCategoria = CategoriaServicio(
                                             nombre = nombreCategoriaActual.trim(),
                                             opciones = opcionesActuales.toList()
                                         )
-
-                                        // Agregar a la lista de categorías confirmadas
                                         categoriasConfirmadas = categoriasConfirmadas + nuevaCategoria
-
-                                        // Limpiar el formulario
                                         nombreCategoriaActual = ""
                                         nuevaOpcion = ""
                                         opcionesActuales = emptyList()
-
-                                        // Ocultar el formulario
                                         mostrarFormularioCategoria = false
                                     }
                                 },
@@ -268,7 +261,6 @@ fun AgregarServicioForm(
                     Spacer(modifier = Modifier.height(16.dp))
                 }
 
-                // Mostrar categorías confirmadas
                 if (categoriasConfirmadas.isNotEmpty()) {
                     Text(
                         "Categorías confirmadas:",
@@ -344,22 +336,252 @@ fun AgregarServicioForm(
             }
         }
 
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // NUEVA SECCIÓN: Checklist Template
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Text(
+                    "Checklist del Servicio (Opcional)",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    "Define los items que se deben llevar para este servicio",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Button(
+                    onClick = {
+                        mostrarFormularioChecklist = !mostrarFormularioChecklist
+                        if (mostrarFormularioChecklist) {
+                            nombreCategoriaChecklist = ""
+                            nuevoItemChecklist = ""
+                            itemsChecklistActuales = emptyList()
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.tertiary
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Agregar categoría")
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(if (mostrarFormularioChecklist) "Ocultar Formulario" else "Agregar Categoría de Checklist")
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                if (mostrarFormularioChecklist) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
+                        )
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            OutlinedTextField(
+                                value = nombreCategoriaChecklist,
+                                onValueChange = { nombreCategoriaChecklist = it },
+                                label = { Text("Nombre de la categoría (ej: Caja, Hielera)") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true
+                            )
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            OutlinedTextField(
+                                value = nuevoItemChecklist,
+                                onValueChange = { nuevoItemChecklist = it },
+                                label = { Text("Nuevo item del checklist") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true
+                            )
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Button(
+                                onClick = {
+                                    if (nuevoItemChecklist.isNotBlank()) {
+                                        itemsChecklistActuales = itemsChecklistActuales + nuevoItemChecklist.trim()
+                                        nuevoItemChecklist = ""
+                                    }
+                                },
+                                enabled = nuevoItemChecklist.isNotBlank(),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Agregar Item")
+                            }
+
+                            if (itemsChecklistActuales.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text(
+                                    "Items agregados:",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                LazyColumn(
+                                    modifier = Modifier.heightIn(max = 150.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    items(itemsChecklistActuales.indices.toList()) { index ->
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                "☐ ${itemsChecklistActuales[index]}",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                            IconButton(
+                                                onClick = {
+                                                    itemsChecklistActuales = itemsChecklistActuales.filterIndexed { i, _ -> i != index }
+                                                },
+                                                modifier = Modifier.size(24.dp)
+                                            ) {
+                                                Icon(
+                                                    Icons.Default.Delete,
+                                                    contentDescription = "Eliminar item",
+                                                    tint = MaterialTheme.colorScheme.error
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            Button(
+                                onClick = {
+                                    if (nombreCategoriaChecklist.isNotBlank()) {
+                                        val nuevaCategoriaChecklist = ChecklistCategoria(
+                                            nombre = nombreCategoriaChecklist.trim(),
+                                            items = itemsChecklistActuales.toList()
+                                        )
+                                        checklistTemplate = checklistTemplate + nuevaCategoriaChecklist
+                                        nombreCategoriaChecklist = ""
+                                        nuevoItemChecklist = ""
+                                        itemsChecklistActuales = emptyList()
+                                        mostrarFormularioChecklist = false
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled = nombreCategoriaChecklist.isNotBlank(),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.tertiary
+                                )
+                            ) {
+                                Icon(Icons.Default.Check, contentDescription = "Confirmar")
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Confirmar Categoría")
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+
+                if (checklistTemplate.isNotEmpty()) {
+                    Text(
+                        "Categorías del checklist:",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    LazyColumn(
+                        modifier = Modifier.heightIn(max = 300.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(checklistTemplate.indices.toList()) { index ->
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                                )
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            checklistTemplate[index].nombre,
+                                            style = MaterialTheme.typography.titleSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        IconButton(
+                                            onClick = {
+                                                checklistTemplate = checklistTemplate.filterIndexed { i, _ -> i != index }
+                                            },
+                                            modifier = Modifier.size(24.dp)
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Delete,
+                                                contentDescription = "Eliminar categoría",
+                                                tint = MaterialTheme.colorScheme.error
+                                            )
+                                        }
+                                    }
+
+                                    if (checklistTemplate[index].items.isNotEmpty()) {
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            "Items: ${checklistTemplate[index].items.joinToString(", ")}",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onTertiaryContainer
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(60.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            "No hay checklist configurado.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+
         Spacer(modifier = Modifier.height(24.dp))
 
         Button(
             onClick = {
                 val precio = precioTexto.toDoubleOrNull()
                 if (nombre.isNotBlank() && precio != null) {
-                    // Debug: mostrar qué categorías se van a guardar
-                    println("Categorías a guardar: ${categoriasConfirmadas.map { "${it.nombre}: ${it.opciones}" }}")
-
                     if (servicioEditar != null) {
-                        // Actualizar servicio existente
                         val servicioActualizado = servicioEditar.copy(
                             nombre = nombre,
                             descripcion = descripcion,
                             categorias = categoriasConfirmadas,
-                            precioPorPersona = precioTexto.toDoubleOrNull() ?: 0.0
+                            precioPorPersona = precioTexto.toDoubleOrNull() ?: 0.0,
+                            checklistTemplate = checklistTemplate
                         )
                         viewModel.actualizarServicio(
                             servicio = servicioActualizado,
@@ -372,18 +594,18 @@ fun AgregarServicioForm(
                             }
                         )
                     } else {
-                        // Crear nuevo servicio
                         viewModel.agregarServicio(
                             nombre = nombre,
                             descripcion = descripcion,
                             categorias = categoriasConfirmadas,
                             precioPorPersona = precioTexto.toDoubleOrNull() ?: 0.0,
+                            checklistTemplate = checklistTemplate,
                             onSuccess = {
-                                // Limpiar el formulario
                                 nombre = ""
                                 descripcion = ""
                                 precioTexto = ""
                                 categoriasConfirmadas = emptyList()
+                                checklistTemplate = emptyList()
                                 mensaje = "Servicio agregado exitosamente"
                                 onGuardarExitoso()
                             },

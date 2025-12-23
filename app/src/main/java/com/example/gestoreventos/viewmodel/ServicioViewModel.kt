@@ -3,6 +3,7 @@ package com.example.gestoreventos.viewmodel
 import androidx.lifecycle.ViewModel
 import com.example.gestoreventos.model.Servicio
 import com.example.gestoreventos.model.CategoriaServicio
+import com.example.gestoreventos.model.ChecklistCategoria
 import com.example.gestoreventos.repository.ServicioRepository
 
 class ServicioViewModel : ViewModel() {
@@ -13,6 +14,7 @@ class ServicioViewModel : ViewModel() {
         descripcion: String,
         categorias: List<CategoriaServicio>,
         precioPorPersona: Double,
+        checklistTemplate: List<ChecklistCategoria> = emptyList(), // NUEVO parámetro
         onSuccess: () -> Unit,
         onFailure: (Exception) -> Unit
     ) {
@@ -22,7 +24,8 @@ class ServicioViewModel : ViewModel() {
                 nombre = nombre,
                 descripcion = descripcion,
                 categorias = categorias,
-                precioPorPersona = precioPorPersona
+                precioPorPersona = precioPorPersona,
+                checklistTemplate = checklistTemplate // NUEVO campo
             )
             repository.agregarServicio(servicio, onSuccess, onFailure)
         }

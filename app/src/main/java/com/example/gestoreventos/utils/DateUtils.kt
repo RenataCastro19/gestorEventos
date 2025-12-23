@@ -1,67 +1,61 @@
 package com.example.gestoreventos.utils
 
 import com.example.gestoreventos.model.Evento
+import java.text.SimpleDateFormat
 import java.util.*
 
 object DateUtils {
 
     /**
-     * Parsea una fecha en formato "DD/MM/YYYY" a un objeto Calendar
-     */
-    fun parseFecha(fecha: String): Calendar {
-        return try {
-            val partes = fecha.split("/")
-            val calendar = Calendar.getInstance()
-            calendar.set(Calendar.DAY_OF_MONTH, partes[0].toInt())
-            calendar.set(Calendar.MONTH, partes[1].toInt() - 1)
-            calendar.set(Calendar.YEAR, partes[2].toInt())
-            calendar.set(Calendar.HOUR_OF_DAY, 0)
-            calendar.set(Calendar.MINUTE, 0)
-            calendar.set(Calendar.SECOND, 0)
-            calendar.set(Calendar.MILLISECOND, 0)
-            calendar
-        } catch (e: Exception) {
-            Calendar.getInstance()
-        }
-    }
-
-    /**
-     * Verifica si un evento es pasado comparando su fecha con la fecha actual
+     * Verifica si un evento ya pasó
      */
     fun isEventoPasado(evento: Evento): Boolean {
+        if (evento.fecha.isEmpty()) return false
+
         return try {
-            val eventoDate = parseFecha(evento.fecha)
+            val formato = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+            val fechaEvento = formato.parse(evento.fecha)
             val hoy = Calendar.getInstance()
             hoy.set(Calendar.HOUR_OF_DAY, 0)
             hoy.set(Calendar.MINUTE, 0)
             hoy.set(Calendar.SECOND, 0)
             hoy.set(Calendar.MILLISECOND, 0)
 
-            eventoDate.before(hoy)
+            fechaEvento?.before(hoy.time) ?: false
         } catch (e: Exception) {
             false
         }
     }
 
     /**
-     * Calcula los días que faltan para una fecha específica
-     *
-     * @param fecha Fecha en formato "DD/MM/YYYY"
-     * @return Número de días hasta la fecha (positivo si es futuro, negativo si es pasado)
+     * Convierte una fecha en formato dd/MM/yyyy a Long para ordenar
+     * Retorna Long.MAX_VALUE si la fecha es inválida (para poner al final)
      */
-    fun diasHastaFecha(fecha: String): Long {
-        return try {
-            val eventoDate = parseFecha(fecha)
-            val hoy = Calendar.getInstance()
-            hoy.set(Calendar.HOUR_OF_DAY, 0)
-            hoy.set(Calendar.MINUTE, 0)
-            hoy.set(Calendar.SECOND, 0)
-            hoy.set(Calendar.MILLISECOND, 0)
+    fun parseFechaParaOrdenar(fecha: String): Long {
+        if (fecha.isEmpty()) return Long.MAX_VALUE
 
-            val diffInMillis = eventoDate.timeInMillis - hoy.timeInMillis
-            diffInMillis / (1000 * 60 * 60 * 24)
+        return try {
+            val formato = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+            val date = formato.parse(fecha)
+            date?.time ?: Long.MAX_VALUE
         } catch (e: Exception) {
-            0L
+            Long.MAX_VALUE
+        }
+    }
+
+    /**
+     * Formatea una fecha para mostrar de manera legible
+     */
+    fun formatearFecha(fecha: String): String {
+        if (fecha.isEmpty()) return "Sin fecha"
+
+        return try {
+            val formatoEntrada = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+            val formatoSalida = SimpleDateFormat("EEEE, dd 'de' MMMM 'de' yyyy", Locale("es", "MX"))
+            val date = formatoEntrada.parse(fecha)
+            date?.let { formatoSalida.format(it) } ?: fecha
+        } catch (e: Exception) {
+            fecha
         }
     }
 }

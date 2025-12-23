@@ -225,6 +225,9 @@ class MainActivity : ComponentActivity() {
                                         navController.navigate("editar_evento/$eventoId")
                                     },
                                     onCalendarioClick = { navController.navigate("calendario") },
+                                    onChecklistClick = { eventoId ->
+                                        navController.navigate("checklist/$eventoId")
+                                    },
                                     currentUser = usuarioActual
                                 )
                             } else {
@@ -366,6 +369,34 @@ class MainActivity : ComponentActivity() {
                         composable("calendario") {
                             CalendarioScreen(usuarioActual = usuarioActual)
                         }
+
+                        // NUEVA RUTA: Checklist del evento
+                        composable(
+                            route = "checklist/{eventoId}",
+                            arguments = listOf(
+                                navArgument("eventoId") { type = NavType.StringType }
+                            )
+                        ) { backStackEntry ->
+                            if (usuarioActual?.rol == "super_admin" || usuarioActual?.rol == "admin") {
+                                val eventoId = backStackEntry.arguments?.getString("eventoId") ?: ""
+                                val superAdminViewModel: SuperAdminViewModel = viewModel()
+                                val eventoViewModelChecklist: EventoViewModel = viewModel()
+
+                                ChecklistScreen(
+                                    eventoId = eventoId,
+                                    onBackClick = { navController.popBackStack() },
+                                    superAdminViewModel = superAdminViewModel,
+                                    eventoViewModel = eventoViewModelChecklist
+                                )
+                            } else {
+                                LaunchedEffect(Unit) {
+                                    navController.navigate("login") {
+                                        popUpTo("login") { inclusive = true }
+                                    }
+                                }
+                            }
+                        }
+
                         // Rutas protegidas - para empleados
                         composable("empleado_home") {
                             if (usuarioActual?.rol == "empleado") {
