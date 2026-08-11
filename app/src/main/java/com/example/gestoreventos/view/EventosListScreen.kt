@@ -480,19 +480,21 @@ fun ElegantEventoItem(
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color(0xFF4CAF50)
                         ),
+                        contentPadding = PaddingValues(horizontal = 8.dp),
                         shape = RoundedCornerShape(10.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.CheckCircle,
                             contentDescription = "Checklist",
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(16.dp)
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             "Checklist",
-                            style = MaterialTheme.typography.bodyMedium.copy(
+                            style = MaterialTheme.typography.bodySmall.copy(
                                 fontWeight = FontWeight.SemiBold
-                            )
+                            ),
+                            maxLines = 1
                         )
                     }
 
@@ -506,19 +508,21 @@ fun ElegantEventoItem(
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = BrandGold
                             ),
+                            contentPadding = PaddingValues(horizontal = 8.dp),
                             shape = RoundedCornerShape(10.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Edit,
                                 contentDescription = "Editar",
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(16.dp)
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 "Editar",
-                                style = MaterialTheme.typography.bodyMedium.copy(
+                                style = MaterialTheme.typography.bodySmall.copy(
                                     fontWeight = FontWeight.SemiBold
-                                )
+                                ),
+                                maxLines = 1
                             )
                         }
                     }
@@ -567,17 +571,7 @@ fun EventoDetallesDialog(
             mobiliarios = listaMobiliarios.filter { it.id in idsMobiliarios }
         }
         clienteViewModel.obtenerClientes { listaClientes ->
-            println("DEBUG: Clientes cargados: ${listaClientes.size}")
-            println("DEBUG: ID del cliente del evento: '${evento.idCliente}'")
-            println("DEBUG: Lista de clientes disponibles:")
-            listaClientes.forEach { cliente ->
-                println("  - ID: '${cliente.id}', Nombre: '${cliente.nombre}', Teléfono: '${cliente.telefono}'")
-            }
             cliente = listaClientes.find { it.id == evento.idCliente }
-            println("DEBUG: Cliente encontrado: ${cliente?.nombre ?: "NO ENCONTRADO"}")
-            if (cliente == null && evento.idCliente.isNotEmpty()) {
-                println("DEBUG: ERROR - No se encontró el cliente con ID: '${evento.idCliente}'")
-            }
             clientesCargados = true
         }
         categoriaMobiliarioViewModel.obtenerCategorias { listaCategorias ->
@@ -715,24 +709,23 @@ fun EventoDetallesDialog(
                             DetalleItem("Anticipo", "$${String.format("%.2f", evento.anticipo)}")
 
                             // Saldo Pendiente o Liquidado
-                            Row(
+                            Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 8.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                                    .padding(vertical = 8.dp)
                             ) {
                                 Text(
-                                    text = if (estaLiquidado) "Estado:" else "Saldo Pendiente:",
-                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                    text = if (estaLiquidado) "ESTADO" else "SALDO PENDIENTE",
+                                    style = MaterialTheme.typography.labelSmall.copy(
                                         fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                                    ),
-                                    modifier = Modifier.weight(0.4f)
+                                        color = BrandGold.copy(alpha = 0.7f),
+                                        letterSpacing = 0.5.sp
+                                    )
                                 )
 
                                 if (estaLiquidado) {
                                     Card(
+                                        modifier = Modifier.padding(top = 4.dp),
                                         colors = CardDefaults.cardColors(
                                             containerColor = Color(0xFF4CAF50).copy(alpha = 0.2f)
                                         ),
@@ -750,11 +743,10 @@ fun EventoDetallesDialog(
                                 } else {
                                     Text(
                                         text = "$${String.format("%.2f", saldoPendiente)}",
-                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                        style = MaterialTheme.typography.bodyLarge.copy(
                                             fontWeight = FontWeight.Bold,
                                             color = MaterialTheme.colorScheme.error
-                                        ),
-                                        modifier = Modifier.weight(0.6f)
+                                        )
                                     )
                                 }
                             }
@@ -870,58 +862,60 @@ fun EventoDetallesDialog(
                         }
                     )
 
-                    // Botones de PDF (solo para admin y super admin)
+                    // Botón de PDF del contrato (solo para admin y super admin)
+                    // NOTA: se quitó el botón "PDF Trabajadores" — con datos/wifi disponibles en el
+                    // evento, los empleados ya consultan todo desde su perfil en la app (checklist
+                    // incluido), así que ese PDF quedaba duplicando información que ya vive en la app.
                     if (currentUser?.rol == "admin" || currentUser?.rol == "super_admin") {
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            // Botón PDF para Cliente
-                            EventosButton(
-                                text = "PDF Cliente",
-                                onClick = {
-                                    val pdfUri = PdfGenerator.generateClientPdf(
-                                        context = context,
-                                        evento = evento,
-                                        cliente = cliente,
-                                        servicio = servicio,
-                                        empleados = empleados,
-                                        mobiliarios = mobiliarios,
-                                        todosLosServicios = todosLosServicios,
-                                        categoriasMobiliario = categoriasMobiliario
-                                    )
-                                    pdfUri?.let { uri ->
-                                        val fileName = "Caruma_Cliente_Evento_${evento.id}.pdf"
-                                        PdfGenerator.sharePdf(context, uri, fileName)
-                                    }
-                                },
-                                modifier = Modifier.weight(1f)
-                            )
+                        EventosButton(
+                            text = "PDF Cliente",
+                            onClick = {
+                                val pdfUri = PdfGenerator.generateClientPdf(
+                                    context = context,
+                                    evento = evento,
+                                    cliente = cliente,
+                                    servicio = servicio,
+                                    empleados = empleados,
+                                    mobiliarios = mobiliarios,
+                                    todosLosServicios = todosLosServicios,
+                                    categoriasMobiliario = categoriasMobiliario
+                                )
 
-                            // Botón PDF para Trabajadores
-                            EventosButton(
-                                text = "PDF Trabajadores",
-                                onClick = {
-                                    val pdfUri = PdfGenerator.generateWorkerPdf(
-                                        context = context,
-                                        evento = evento,
-                                        cliente = cliente,
-                                        servicio = servicio,
-                                        empleados = empleados,
-                                        mobiliarios = mobiliarios,
-                                        todosLosServicios = todosLosServicios,
-                                        categoriasMobiliario = categoriasMobiliario
-                                    )
-                                    pdfUri?.let { uri ->
-                                        val fileName = "Caruma_Trabajadores_Evento_${evento.id}.pdf"
-                                        PdfGenerator.sharePdf(context, uri, fileName)
-                                    }
-                                },
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
+                                if (pdfUri != null) {
+                                    val fechaFormateada = formatearFechaParaNombre(evento.fecha)
+                                    val fileName = "Contrato_$fechaFormateada.pdf"
+
+                                    // Mostrar diálogo con opciones
+                                    android.app.AlertDialog.Builder(context)
+                                        .setTitle("PDF Generado Correctamente")
+                                        .setMessage("¿Qué deseas hacer con el PDF?")
+                                        .setPositiveButton("Compartir") { _, _ ->
+                                            PdfGenerator.sharePdf(context, pdfUri, fileName)
+                                        }
+                                        .setNegativeButton("Descargar") { _, _ ->
+                                            val descargado = PdfGenerator.savePdfToDownloads(context, pdfUri, fileName)
+                                            if (descargado) {
+                                                android.widget.Toast.makeText(
+                                                    context,
+                                                    "PDF guardado en Descargas: $fileName",
+                                                    android.widget.Toast.LENGTH_LONG
+                                                ).show()
+                                            }
+                                        }
+                                        .setNeutralButton("Cancelar", null)
+                                        .show()
+                                } else {
+                                    android.widget.Toast.makeText(
+                                        context,
+                                        "Error al generar el PDF",
+                                        android.widget.Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        )
                     }
                 }
             }
@@ -968,26 +962,25 @@ fun DetalleItem(
     etiqueta: String,
     valor: String
 ) {
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
+            .padding(vertical = 8.dp)
     ) {
         Text(
-            text = "$etiqueta:",
-            style = MaterialTheme.typography.bodyMedium.copy(
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-            ),
-            modifier = Modifier.weight(0.4f)
+            text = etiqueta.uppercase(),
+            style = MaterialTheme.typography.labelSmall.copy(
+                fontWeight = FontWeight.Bold,
+                color = BrandGold.copy(alpha = 0.7f),
+                letterSpacing = 0.5.sp
+            )
         )
         Text(
             text = valor,
-            style = MaterialTheme.typography.bodyMedium.copy(
-                fontWeight = FontWeight.Normal
-            ),
-            modifier = Modifier.weight(0.6f)
+            style = MaterialTheme.typography.bodyLarge.copy(
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
         )
     }
 }
@@ -1027,5 +1020,22 @@ fun EventosButton(
             ),
             maxLines = 2
         )
+    }
+}
+
+// Agregar esta función helper al final del archivo, fuera de los composables
+private fun formatearFechaParaNombre(fecha: String): String {
+    return try {
+        val meses = arrayOf(
+            "", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+            "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+        )
+        val partes = fecha.split("/")
+        val dia = partes[0]
+        val mes = meses[partes[1].toInt()]
+        val anio = partes[2]
+        "${dia}${mes}${anio}"
+    } catch (e: Exception) {
+        "Evento"
     }
 }
