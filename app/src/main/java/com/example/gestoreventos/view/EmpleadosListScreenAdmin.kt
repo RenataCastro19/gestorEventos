@@ -1,5 +1,6 @@
 package com.example.gestoreventos.view
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -11,29 +12,29 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.example.gestoreventos.model.Usuario
 import com.example.gestoreventos.model.Evento
 import com.example.gestoreventos.viewmodel.SuperAdminViewModel
 import com.example.gestoreventos.viewmodel.EventoViewModel
 import com.example.gestoreventos.ui.theme.BrandGold
-import com.example.gestoreventos.view.EventosEmpleadoDialog
+import com.example.gestoreventos.ui.theme.CardBorder
+import com.example.gestoreventos.ui.theme.TextMuted
+import com.example.gestoreventos.ui.theme.ErrorRed
+import com.example.gestoreventos.ui.theme.WarningGold
+import com.example.gestoreventos.ui.theme.WarningGoldBg
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.compose.runtime.collectAsState
+
+private const val TAG = "EmpleadosListScreenAdmin"
 
 @Composable
 fun EmpleadosListScreenAdmin(
     viewModel: SuperAdminViewModel = viewModel()
 ) {
     val empleados by viewModel.empleados.collectAsState()
-    val usuarioActual by viewModel.usuarioActual.collectAsState()
     val empleadosFiltrados = empleados.filter { it.rol != "super_admin" }
 
     Column(
@@ -74,14 +75,14 @@ fun EmpleadosListScreenAdmin(
                         viewModel.inhabilitarUsuario(
                             usuario = usuario,
                             onSuccess = {},
-                            onFailure = { exception -> println("Error al inhabilitar usuario: ${exception.message}") }
+                            onFailure = { exception -> Log.e(TAG, "Error al inhabilitar usuario", exception) }
                         )
                     },
                     onHabilitar = { usuario ->
                         viewModel.habilitarUsuario(
                             usuario = usuario,
                             onSuccess = {},
-                            onFailure = { exception -> println("Error al habilitar usuario: ${exception.message}") }
+                            onFailure = { exception -> Log.e(TAG, "Error al habilitar usuario", exception) }
                         )
                     }
                 )
@@ -99,6 +100,7 @@ fun ElegantEmpleadoItemAdmin(
     var mostrarEventos by remember { mutableStateOf(false) }
     var eventosEmpleado by remember { mutableStateOf<List<Evento>>(emptyList()) }
     val eventoViewModel: EventoViewModel = viewModel()
+    val inhabilitado = empleado.estado == "inhabilitado"
 
     // Cargar eventos del empleado cuando se abre el diálogo
     LaunchedEffect(mostrarEventos) {
@@ -106,10 +108,7 @@ fun ElegantEmpleadoItemAdmin(
             eventoViewModel.obtenerEventos { todosLosEventos ->
                 eventosEmpleado = todosLosEventos.filter { evento ->
                     evento.listaIdsEmpleados.contains(empleado.id)
-                }.sortedBy { evento ->
-                    // Ordenar por fecha (más pronto primero)
-                    evento.fecha
-                }
+                }.sortedBy { evento -> evento.fecha }
             }
         }
     }
@@ -119,18 +118,18 @@ fun ElegantEmpleadoItemAdmin(
             .fillMaxWidth()
             .clickable { mostrarEventos = true }
             .shadow(
-                elevation = 6.dp,
+                elevation = 3.dp,
                 shape = RoundedCornerShape(16.dp),
-                spotColor = if (empleado.estado == "inhabilitado") Color.Gray.copy(alpha = 0.2f) else BrandGold.copy(alpha = 0.2f)
+                spotColor = Color.Black.copy(alpha = 0.15f)
             )
             .border(
                 width = 1.dp,
-                color = if (empleado.estado == "inhabilitado") Color.Gray.copy(alpha = 0.3f) else BrandGold.copy(alpha = 0.3f),
+                color = if (inhabilitado) TextMuted.copy(alpha = 0.4f) else CardBorder,
                 shape = RoundedCornerShape(16.dp)
             ),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (empleado.estado == "inhabilitado") Color.Gray.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surface
+            containerColor = if (inhabilitado) TextMuted.copy(alpha = 0.08f) else MaterialTheme.colorScheme.surface
         )
     ) {
         Column(
@@ -145,20 +144,17 @@ fun ElegantEmpleadoItemAdmin(
                     text = "ID: ${empleado.id}",
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
-                        color = if (empleado.estado == "inhabilitado") Color.Gray else BrandGold
-                    )
+                        color = if (inhabilitado) TextMuted else BrandGold
+                    ),
+                    modifier = Modifier.weight(1f)
                 )
+
+                Spacer(modifier = Modifier.width(8.dp))
 
                 // Indicador de rol
                 Card(
-                    modifier = Modifier
-                        .border(
-                            width = 1.dp,
-                            color = if (empleado.estado == "inhabilitado") Color.Gray else BrandGold,
-                            shape = RoundedCornerShape(8.dp)
-                        ),
                     colors = CardDefaults.cardColors(
-                        containerColor = if (empleado.estado == "inhabilitado") Color.Gray.copy(alpha = 0.1f) else BrandGold.copy(alpha = 0.1f)
+                        containerColor = if (inhabilitado) TextMuted.copy(alpha = 0.15f) else WarningGoldBg
                     ),
                     shape = RoundedCornerShape(8.dp)
                 ) {
@@ -166,7 +162,7 @@ fun ElegantEmpleadoItemAdmin(
                         text = empleado.rol.uppercase(),
                         style = MaterialTheme.typography.bodySmall.copy(
                             fontWeight = FontWeight.Bold,
-                            color = if (empleado.estado == "inhabilitado") Color.Gray else BrandGold
+                            color = if (inhabilitado) TextMuted else WarningGold
                         ),
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
@@ -177,42 +173,42 @@ fun ElegantEmpleadoItemAdmin(
 
             Column {
                 Text(
-                    text = "Nombre",
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    text = "NOMBRE",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        color = BrandGold.copy(alpha = 0.7f)
                     )
                 )
                 Text(
                     text = "${empleado.nombre} ${empleado.apellidoPaterno} ${empleado.apellidoMaterno}",
                     style = MaterialTheme.typography.bodyLarge.copy(
                         fontWeight = FontWeight.Medium,
-                        color = if (empleado.estado == "inhabilitado") Color.Gray else MaterialTheme.colorScheme.onSurface
+                        color = if (inhabilitado) TextMuted else MaterialTheme.colorScheme.onSurface
                     )
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = "Teléfono",
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    text = "TELÉFONO",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        color = BrandGold.copy(alpha = 0.7f)
                     )
                 )
                 Text(
                     text = empleado.telefono,
                     style = MaterialTheme.typography.bodyLarge.copy(
                         fontWeight = FontWeight.Medium,
-                        color = if (empleado.estado == "inhabilitado") Color.Gray else MaterialTheme.colorScheme.onSurface
+                        color = if (inhabilitado) TextMuted else MaterialTheme.colorScheme.onSurface
                     )
                 )
 
-                if (empleado.estado == "inhabilitado") {
+                if (inhabilitado) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "ESTADO: INHABILITADO",
                         style = MaterialTheme.typography.bodySmall.copy(
                             fontWeight = FontWeight.Bold,
-                            color = Color.Red
+                            color = ErrorRed
                         )
                     )
                 }
@@ -231,4 +227,3 @@ fun ElegantEmpleadoItemAdmin(
         )
     }
 }
-

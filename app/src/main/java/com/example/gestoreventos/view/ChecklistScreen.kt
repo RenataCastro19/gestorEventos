@@ -1,13 +1,10 @@
 package com.example.gestoreventos.view
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
@@ -16,16 +13,18 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.gestoreventos.model.*
 import com.example.gestoreventos.viewmodel.SuperAdminViewModel
 import com.example.gestoreventos.viewmodel.EventoViewModel
 import com.example.gestoreventos.viewmodel.ServicioViewModel
 import com.example.gestoreventos.ui.theme.BrandGold
+import com.example.gestoreventos.ui.theme.BrandBlack
+import com.example.gestoreventos.ui.theme.CardBorder
+import com.example.gestoreventos.ui.theme.WarningGoldBg
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.compose.ui.graphics.Color
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,18 +42,15 @@ fun ChecklistScreen(
     var checklistsEvento by remember { mutableStateOf<Map<String, ChecklistEvento>>(emptyMap()) }
     var cambiosPendientes by remember { mutableStateOf(false) }
 
-    // Cargar servicios
     LaunchedEffect(Unit) {
         servicioViewModel.obtenerServicios { servicios ->
             todosLosServicios = servicios
         }
     }
 
-    // Inicializar checklists desde el evento
     LaunchedEffect(evento) {
         if (evento != null) {
             if (evento.checklists.isEmpty()) {
-                // Crear checklists desde los templates de los servicios
                 val nuevosChecklists = mutableMapOf<String, ChecklistEvento>()
 
                 evento.serviciosSeleccionados.forEach { servicioSel ->
@@ -153,7 +149,6 @@ fun ChecklistScreen(
                     }
                 }
             } else {
-                // Indicador de progreso
                 val totalItems = checklistsEvento.values.sumOf { checklist ->
                     checklist.categorias.sumOf { it.items.size }
                 }
@@ -167,10 +162,13 @@ fun ChecklistScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 16.dp),
+                        .padding(bottom = 16.dp)
+                        .border(width = 1.dp, color = CardBorder, shape = RoundedCornerShape(12.dp)),
                     colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer
-                    )
+                        containerColor = WarningGoldBg
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(
@@ -201,12 +199,11 @@ fun ChecklistScreen(
                                 .fillMaxWidth()
                                 .height(8.dp),
                             color = BrandGold,
-                            trackColor = MaterialTheme.colorScheme.surfaceVariant
+                            trackColor = MaterialTheme.colorScheme.surface
                         )
                     }
                 }
 
-                // Lista de checklists por servicio
                 LazyColumn(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -242,7 +239,6 @@ fun ChecklistScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Botón para guardar
                 Button(
                     onClick = {
                         val eventoActualizado = evento.copy(checklists = checklistsEvento)
@@ -260,7 +256,7 @@ fun ChecklistScreen(
                     enabled = cambiosPendientes,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = BrandGold,
-                        contentColor = Color.White
+                        contentColor = BrandBlack
                     )
                 ) {
                     Icon(
@@ -288,12 +284,13 @@ fun ChecklistServicioCard(
         modifier = Modifier
             .fillMaxWidth()
             .shadow(
-                elevation = 4.dp,
-                shape = RoundedCornerShape(16.dp)
+                elevation = 2.dp,
+                shape = RoundedCornerShape(16.dp),
+                spotColor = Color.Black.copy(alpha = 0.12f)
             )
             .border(
                 width = 1.dp,
-                color = BrandGold.copy(alpha = 0.3f),
+                color = CardBorder,
                 shape = RoundedCornerShape(16.dp)
             ),
         shape = RoundedCornerShape(16.dp),
@@ -301,68 +298,67 @@ fun ChecklistServicioCard(
             containerColor = MaterialTheme.colorScheme.surface
         )
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            // Título del servicio
-            Text(
-                text = checklist.nombreServicio,
-                style = MaterialTheme.typography.titleLarge.copy(
-                    fontWeight = FontWeight.Bold,
-                    color = BrandGold
-                ),
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
-
-            // Categorías
-            checklist.categorias.forEachIndexed { categoriaIndex, categoria ->
-                if (categoriaIndex > 0) {
-                    Spacer(modifier = Modifier.height(16.dp))
-                }
-
-                // Título de la categoría
+        SelectionContainer {
+            Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = categoria.nombre,
-                    style = MaterialTheme.typography.titleMedium.copy(
+                    text = checklist.nombreServicio,
+                    style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        color = BrandGold
                     ),
-                    modifier = Modifier.padding(bottom = 8.dp)
+                    modifier = Modifier.padding(bottom = 16.dp)
                 )
 
-                // Items de la categoría
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    categoria.items.forEachIndexed { itemIndex, item ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Checkbox(
-                                checked = item.completado,
-                                onCheckedChange = {
-                                    onItemToggle(categoriaIndex, itemIndex)
-                                },
-                                colors = CheckboxDefaults.colors(
-                                    checkedColor = BrandGold,
-                                    uncheckedColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                checklist.categorias.forEachIndexed { categoriaIndex, categoria ->
+                    if (categoriaIndex > 0) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
+
+                    Text(
+                        text = categoria.nombre,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        ),
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        categoria.items.forEachIndexed { itemIndex, item ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Checkbox(
+                                    checked = item.completado,
+                                    onCheckedChange = {
+                                        onItemToggle(categoriaIndex, itemIndex)
+                                    },
+                                    colors = CheckboxDefaults.colors(
+                                        checkedColor = BrandGold,
+                                        uncheckedColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                    )
                                 )
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = item.nombre,
-                                style = MaterialTheme.typography.bodyLarge.copy(
-                                    color = if (item.completado)
-                                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                                    else
-                                        MaterialTheme.colorScheme.onSurface,
-                                    textDecoration = if (item.completado)
-                                        androidx.compose.ui.text.style.TextDecoration.LineThrough
-                                    else
-                                        androidx.compose.ui.text.style.TextDecoration.None
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = item.nombre,
+                                    style = MaterialTheme.typography.bodyLarge.copy(
+                                        color = if (item.completado)
+                                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                        else
+                                            MaterialTheme.colorScheme.onSurface,
+                                        textDecoration = if (item.completado)
+                                            androidx.compose.ui.text.style.TextDecoration.LineThrough
+                                        else
+                                            androidx.compose.ui.text.style.TextDecoration.None
+                                    ),
+                                    modifier = Modifier.weight(1f)
                                 )
-                            )
+                            }
                         }
                     }
                 }

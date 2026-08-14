@@ -12,6 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -20,8 +21,12 @@ import com.example.gestoreventos.model.CategoriaMobiliario
 import com.example.gestoreventos.viewmodel.MobiliarioViewModel
 import com.example.gestoreventos.viewmodel.CategoriaMobiliarioViewModel
 import com.example.gestoreventos.ui.theme.BrandGold
-import com.example.gestoreventos.ui.theme.GrayLight
-import androidx.compose.ui.graphics.Color
+import com.example.gestoreventos.ui.theme.CardBorder
+import com.example.gestoreventos.ui.theme.TextMuted
+import com.example.gestoreventos.ui.theme.ErrorRed
+import com.example.gestoreventos.ui.theme.ErrorRedBg
+import com.example.gestoreventos.ui.theme.SuccessGreen
+import com.example.gestoreventos.ui.theme.SuccessGreenBg
 
 @Composable
 fun MobiliarioListScreen(
@@ -119,22 +124,24 @@ fun ElegantMobiliarioItem(
     viewModel: MobiliarioViewModel,
     onRecargarLista: () -> Unit
 ) {
+    val inhabilitado = mobiliario.estado == "inhabilitado"
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .shadow(
-                elevation = 6.dp,
+                elevation = 3.dp,
                 shape = RoundedCornerShape(16.dp),
-                spotColor = BrandGold.copy(alpha = 0.2f)
+                spotColor = Color.Black.copy(alpha = 0.15f)
             )
             .border(
                 width = 1.dp,
-                color = BrandGold.copy(alpha = 0.3f),
+                color = if (inhabilitado) ErrorRedBg.copy(alpha = 0.6f) else CardBorder,
                 shape = RoundedCornerShape(16.dp)
             ),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (mobiliario.estado == "inhabilitado") Color.Gray.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surface
+            containerColor = if (inhabilitado) ErrorRedBg.copy(alpha = 0.4f) else MaterialTheme.colorScheme.surface
         )
     ) {
         Column(
@@ -145,33 +152,33 @@ fun ElegantMobiliarioItem(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "ID: ${mobiliario.id}",
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
-                            color = if (mobiliario.estado == "inhabilitado") Color.Gray else BrandGold
+                            color = if (inhabilitado) TextMuted else BrandGold
                         )
                     )
-                    if (mobiliario.estado == "inhabilitado") {
+                    if (inhabilitado) {
                         Text(
                             text = "ESTADO: INHABILITADO",
                             style = MaterialTheme.typography.bodySmall.copy(
                                 fontWeight = FontWeight.Bold,
-                                color = Color.Red
+                                color = ErrorRed
                             )
                         )
                     }
                 }
-                // BOTÓN HABILITAR/INHABILITAR
-                if (mobiliario.estado == "inhabilitado") {
+                Spacer(modifier = Modifier.width(8.dp))
+                if (inhabilitado) {
                     Button(
                         onClick = {
                             viewModel.habilitarMobiliario(mobiliario, onSuccess = { onRecargarLista() }, onFailure = {})
                         },
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF4CAF50), // Verde
-                            contentColor = Color.White
+                            containerColor = SuccessGreenBg,
+                            contentColor = SuccessGreen
                         ),
                         modifier = Modifier.height(36.dp)
                     ) {
@@ -183,8 +190,8 @@ fun ElegantMobiliarioItem(
                             viewModel.inhabilitarMobiliario(mobiliario, onSuccess = { onRecargarLista() }, onFailure = {})
                         },
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.Red,
-                            contentColor = Color.White
+                            containerColor = ErrorRedBg,
+                            contentColor = ErrorRed
                         ),
                         modifier = Modifier.height(36.dp)
                     ) {
@@ -195,41 +202,40 @@ fun ElegantMobiliarioItem(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column {
-                    Text(
-                        text = "Categoría",
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                        )
+            // Categoría y Color ahora van uno debajo del otro (antes iban lado a lado
+            // en el mismo renglón y el valor de categoría se mezclaba visualmente con el color)
+            Column {
+                Text(
+                    text = "CATEGORÍA",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        color = BrandGold.copy(alpha = 0.7f)
                     )
-                    Text(
-                        text = categoriaNombre,
-                        style = MaterialTheme.typography.bodyLarge.copy(
-                            fontWeight = FontWeight.Medium,
-                            color = if (mobiliario.estado == "inhabilitado") Color.Gray else MaterialTheme.colorScheme.onSurface
-                        )
+                )
+                Text(
+                    text = categoriaNombre,
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        fontWeight = FontWeight.Medium,
+                        color = if (inhabilitado) TextMuted else MaterialTheme.colorScheme.onSurface
                     )
-                }
+                )
+            }
 
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        text = "Color",
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                        )
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Column {
+                Text(
+                    text = "COLOR",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        color = BrandGold.copy(alpha = 0.7f)
                     )
-                    Text(
-                        text = mobiliario.color,
-                        style = MaterialTheme.typography.bodyLarge.copy(
-                            fontWeight = FontWeight.Medium,
-                            color = if (mobiliario.estado == "inhabilitado") Color.Gray else MaterialTheme.colorScheme.onSurface
-                        )
+                )
+                Text(
+                    text = mobiliario.color,
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        fontWeight = FontWeight.Medium,
+                        color = if (inhabilitado) TextMuted else MaterialTheme.colorScheme.onSurface
                     )
-                }
+                )
             }
         }
     }
@@ -244,16 +250,16 @@ fun MobiliarioButton(
     Button(
         onClick = onClick,
         modifier = modifier
-            .height(60.dp)
+            .height(56.dp)
             .shadow(
-                elevation = 6.dp,
+                elevation = 2.dp,
                 shape = RoundedCornerShape(12.dp),
-                spotColor = BrandGold.copy(alpha = 0.3f)
+                spotColor = Color.Black.copy(alpha = 0.12f)
             )
             .clip(RoundedCornerShape(12.dp))
             .border(
-                width = 2.dp,
-                color = BrandGold,
+                width = 1.dp,
+                color = CardBorder,
                 shape = RoundedCornerShape(12.dp)
             ),
         colors = ButtonDefaults.buttonColors(

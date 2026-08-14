@@ -1,9 +1,11 @@
 package com.example.gestoreventos.view
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -20,6 +22,8 @@ import androidx.compose.ui.unit.dp
 import com.example.gestoreventos.model.CategoriaServicio
 import com.example.gestoreventos.model.Servicio
 import com.example.gestoreventos.model.ChecklistCategoria
+import com.example.gestoreventos.ui.theme.BrandGold
+import com.example.gestoreventos.ui.theme.CardBorder
 import com.example.gestoreventos.viewmodel.ServicioViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -32,24 +36,20 @@ fun AgregarServicioForm(
 ) {
     var nombre by remember { mutableStateOf(servicioEditar?.nombre ?: "") }
     var descripcion by remember { mutableStateOf(servicioEditar?.descripcion ?: "") }
-    var precioTexto by remember { mutableStateOf(servicioEditar?.precioPorPersona?.toString() ?: "") }
     var categoriasConfirmadas by remember { mutableStateOf(servicioEditar?.categorias?.toList() ?: emptyList()) }
     var checklistTemplate by remember { mutableStateOf(servicioEditar?.checklistTemplate?.toList() ?: emptyList()) }
     var mensaje by remember { mutableStateOf("") }
 
-    // Estados para el formulario de categoría actual
     var mostrarFormularioCategoria by remember { mutableStateOf(false) }
     var nombreCategoriaActual by remember { mutableStateOf("") }
     var nuevaOpcion by remember { mutableStateOf("") }
     var opcionesActuales by remember { mutableStateOf(emptyList<String>()) }
 
-    // NUEVO: Estados para el checklist - MEJORADO PARA AGRUPAR
     var mostrarFormularioChecklist by remember { mutableStateOf(false) }
     var nombreCategoriaChecklist by remember { mutableStateOf("") }
     var nuevoItemChecklist by remember { mutableStateOf("") }
     var itemsChecklistActuales by remember { mutableStateOf(emptyList<String>()) }
 
-    // NUEVO: Lista desplegable para categorías existentes
     var categoriaChecklistExpandida by remember { mutableStateOf(false) }
 
     Column(
@@ -61,15 +61,19 @@ fun AgregarServicioForm(
         Text(
             if (servicioEditar != null) "Editar Servicio" else "Agregar Servicio",
             style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            color = BrandGold
         )
 
         Spacer(modifier = Modifier.height(24.dp))
 
         // Información básica del servicio
         Card(
-            modifier = Modifier.fillMaxWidth(),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(width = 1.dp, color = CardBorder, shape = RoundedCornerShape(12.dp)),
+            shape = RoundedCornerShape(12.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
                 Text(
@@ -98,26 +102,18 @@ fun AgregarServicioForm(
                     minLines = 2,
                     maxLines = 3
                 )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                OutlinedTextField(
-                    value = precioTexto,
-                    onValueChange = { precioTexto = it.filter { c -> c.isDigit() || c == '.' } },
-                    label = { Text("Precio por unidad") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
             }
         }
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // Sección de categorías (código existente - sin cambios)
+        // Sección de categorías
         Card(
-            modifier = Modifier.fillMaxWidth(),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(width = 1.dp, color = CardBorder, shape = RoundedCornerShape(12.dp)),
+            shape = RoundedCornerShape(12.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
                 Text(
@@ -138,7 +134,8 @@ fun AgregarServicioForm(
                         }
                     },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
                     ),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -151,10 +148,13 @@ fun AgregarServicioForm(
 
                 if (mostrarFormularioCategoria) {
                     Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(width = 1.dp, color = CardBorder, shape = RoundedCornerShape(12.dp)),
+                        shape = RoundedCornerShape(12.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
+                            containerColor = MaterialTheme.colorScheme.surface
                         )
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
@@ -252,7 +252,8 @@ fun AgregarServicioForm(
                                 modifier = Modifier.fillMaxWidth(),
                                 enabled = nombreCategoriaActual.isNotBlank(),
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.secondary
+                                    containerColor = MaterialTheme.colorScheme.secondary,
+                                    contentColor = MaterialTheme.colorScheme.onSecondary
                                 )
                             ) {
                                 Icon(Icons.Default.Check, contentDescription = "Confirmar")
@@ -280,7 +281,11 @@ fun AgregarServicioForm(
                     ) {
                         items(categoriasConfirmadas.indices.toList()) { index ->
                             Card(
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .border(width = 1.dp, color = CardBorder, shape = RoundedCornerShape(12.dp)),
+                                shape = RoundedCornerShape(12.dp),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                                 colors = CardDefaults.cardColors(
                                     containerColor = MaterialTheme.colorScheme.primaryContainer
                                 )
@@ -342,10 +347,13 @@ fun AgregarServicioForm(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // NUEVA SECCIÓN: Checklist Template - MEJORADO PARA AGRUPAR
+        // Checklist Template
         Card(
-            modifier = Modifier.fillMaxWidth(),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(width = 1.dp, color = CardBorder, shape = RoundedCornerShape(12.dp)),
+            shape = RoundedCornerShape(12.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
                 Text(
@@ -371,7 +379,8 @@ fun AgregarServicioForm(
                         }
                     },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.tertiary
+                        containerColor = MaterialTheme.colorScheme.tertiary,
+                        contentColor = MaterialTheme.colorScheme.onTertiary
                     ),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -384,14 +393,16 @@ fun AgregarServicioForm(
 
                 if (mostrarFormularioChecklist) {
                     Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(width = 1.dp, color = CardBorder, shape = RoundedCornerShape(12.dp)),
+                        shape = RoundedCornerShape(12.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
+                            containerColor = MaterialTheme.colorScheme.surface
                         )
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
-                            // MEJORADO: Dropdown para seleccionar categoría existente o crear nueva
                             Text(
                                 "Selecciona una categoría:",
                                 style = MaterialTheme.typography.bodyMedium.copy(
@@ -400,11 +411,9 @@ fun AgregarServicioForm(
                                 modifier = Modifier.padding(bottom = 8.dp)
                             )
 
-                            // Obtener categorías únicas existentes
                             val categoriasExistentes = checklistTemplate.map { it.nombre }.distinct()
 
                             if (categoriasExistentes.isNotEmpty()) {
-                                // Dropdown de categorías existentes
                                 ExposedDropdownMenuBox(
                                     expanded = categoriaChecklistExpandida,
                                     onExpandedChange = { categoriaChecklistExpandida = !categoriaChecklistExpandida }
@@ -525,13 +534,11 @@ fun AgregarServicioForm(
                             Button(
                                 onClick = {
                                     if (nombreCategoriaChecklist.isNotBlank() && itemsChecklistActuales.isNotEmpty()) {
-                                        // MEJORADO: Buscar si ya existe una categoría con ese nombre
                                         val categoriaExistente = checklistTemplate.find {
                                             it.nombre.equals(nombreCategoriaChecklist.trim(), ignoreCase = true)
                                         }
 
                                         if (categoriaExistente != null) {
-                                            // Agregar items a la categoría existente
                                             val categoriasActualizadas = checklistTemplate.map { categoria ->
                                                 if (categoria.nombre.equals(nombreCategoriaChecklist.trim(), ignoreCase = true)) {
                                                     categoria.copy(
@@ -543,7 +550,6 @@ fun AgregarServicioForm(
                                             }
                                             checklistTemplate = categoriasActualizadas
                                         } else {
-                                            // Crear nueva categoría
                                             val nuevaCategoriaChecklist = ChecklistCategoria(
                                                 nombre = nombreCategoriaChecklist.trim(),
                                                 items = itemsChecklistActuales.toList()
@@ -560,7 +566,8 @@ fun AgregarServicioForm(
                                 modifier = Modifier.fillMaxWidth(),
                                 enabled = nombreCategoriaChecklist.isNotBlank() && itemsChecklistActuales.isNotEmpty(),
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.tertiary
+                                    containerColor = MaterialTheme.colorScheme.tertiary,
+                                    contentColor = MaterialTheme.colorScheme.onTertiary
                                 )
                             ) {
                                 Icon(Icons.Default.Check, contentDescription = "Confirmar")
@@ -588,7 +595,11 @@ fun AgregarServicioForm(
                     ) {
                         items(checklistTemplate.indices.toList()) { index ->
                             Card(
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .border(width = 1.dp, color = CardBorder, shape = RoundedCornerShape(12.dp)),
+                                shape = RoundedCornerShape(12.dp),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                                 colors = CardDefaults.cardColors(
                                     containerColor = MaterialTheme.colorScheme.tertiaryContainer
                                 )
@@ -652,14 +663,12 @@ fun AgregarServicioForm(
 
         Button(
             onClick = {
-                val precio = precioTexto.toDoubleOrNull()
-                if (nombre.isNotBlank() && precio != null) {
+                if (nombre.isNotBlank()) {
                     if (servicioEditar != null) {
                         val servicioActualizado = servicioEditar.copy(
                             nombre = nombre,
                             descripcion = descripcion,
                             categorias = categoriasConfirmadas,
-                            precioPorPersona = precioTexto.toDoubleOrNull() ?: 0.0,
                             checklistTemplate = checklistTemplate
                         )
                         viewModel.actualizarServicio(
@@ -677,12 +686,10 @@ fun AgregarServicioForm(
                             nombre = nombre,
                             descripcion = descripcion,
                             categorias = categoriasConfirmadas,
-                            precioPorPersona = precioTexto.toDoubleOrNull() ?: 0.0,
                             checklistTemplate = checklistTemplate,
                             onSuccess = {
                                 nombre = ""
                                 descripcion = ""
-                                precioTexto = ""
                                 categoriasConfirmadas = emptyList()
                                 checklistTemplate = emptyList()
                                 mensaje = "Servicio agregado exitosamente"
@@ -698,9 +705,10 @@ fun AgregarServicioForm(
                 }
             },
             modifier = Modifier.fillMaxWidth(),
-            enabled = nombre.isNotBlank() && precioTexto.isNotBlank(),
+            enabled = nombre.isNotBlank(),
             colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
             )
         ) {
             Text("Guardar Servicio", style = MaterialTheme.typography.titleMedium)
@@ -709,7 +717,11 @@ fun AgregarServicioForm(
         if (mensaje.isNotEmpty()) {
             Spacer(modifier = Modifier.height(12.dp))
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(width = 1.dp, color = CardBorder, shape = RoundedCornerShape(12.dp)),
+                shape = RoundedCornerShape(12.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = if (mensaje.contains("Error"))
                         MaterialTheme.colorScheme.errorContainer

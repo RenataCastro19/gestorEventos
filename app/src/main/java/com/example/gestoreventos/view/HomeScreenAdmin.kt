@@ -13,12 +13,11 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.gestoreventos.model.Usuario
 import com.example.gestoreventos.ui.theme.BrandGold
-import com.example.gestoreventos.ui.theme.BrandBlack
-import com.example.gestoreventos.ui.theme.GrayLight
-import com.example.gestoreventos.view.ElegantButton
+import com.example.gestoreventos.ui.theme.CardBorder
+import com.example.gestoreventos.ui.theme.ErrorRed
+import com.example.gestoreventos.ui.theme.ErrorRedBg
 
 @Composable
 fun HomeScreenAdmin(
@@ -95,19 +94,19 @@ fun HomeScreenAdmin(
                     .fillMaxWidth()
                     .height(50.dp)
                     .shadow(
-                        elevation = 4.dp,
+                        elevation = 2.dp,
                         shape = RoundedCornerShape(12.dp),
-                        spotColor = Color.Red.copy(alpha = 0.3f)
+                        spotColor = Color.Black.copy(alpha = 0.1f)
                     )
                     .clip(RoundedCornerShape(12.dp))
                     .border(
                         width = 1.dp,
-                        color = Color.Red,
+                        color = CardBorder,
                         shape = RoundedCornerShape(12.dp)
                     ),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.Red.copy(alpha = 0.1f),
-                    contentColor = Color.Red
+                    containerColor = ErrorRedBg,
+                    contentColor = ErrorRed
                 ),
                 shape = RoundedCornerShape(12.dp)
             ) {
@@ -121,4 +120,3 @@ fun HomeScreenAdmin(
         }
     }
 }
-

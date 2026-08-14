@@ -3,12 +3,14 @@ package com.example.gestoreventos.view
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.content.Context
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
@@ -26,6 +28,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.ArrowDropDown
 import com.example.gestoreventos.ui.theme.BrandGold
+import com.example.gestoreventos.ui.theme.BrandBlack
+import com.example.gestoreventos.ui.theme.CardBorder
+import com.example.gestoreventos.ui.theme.WarningGoldBg
 import androidx.compose.ui.text.font.FontWeight
 import kotlinx.coroutines.launch
 
@@ -72,7 +77,7 @@ fun AgregarEventoForm(
     // Estado para la selección de opciones por servicio/categoría
     var seleccionServiciosCategorias by remember { mutableStateOf<Map<String, MutableMap<String, MutableSet<String>>>>(mutableMapOf()) }
 
-    // NUEVO: Estado para las cantidades de cada servicio
+    // Estado para las cantidades de cada servicio
     var cantidadesServicios by remember { mutableStateOf<Map<String, String>>(mutableMapOf()) }
 
     val empleadosActivos = usuarios.filter { it.estado == "activo" }
@@ -85,7 +90,6 @@ fun AgregarEventoForm(
     var precargado by remember { mutableStateOf(false) }
     LaunchedEffect(servicios, mobiliarios, usuarios, clientes, eventoAEditar) {
         if (eventoAEditar != null && !precargado) {
-            // Precargar fecha, hora, etc.
             fecha = eventoAEditar.fecha
             horaInicio = eventoAEditar.horaInicio
             horaFin = eventoAEditar.horaFin
@@ -95,32 +99,27 @@ fun AgregarEventoForm(
             precioTotal = eventoAEditar.precioTotal.toString()
             anticipo = eventoAEditar.anticipo.toString()
 
-            // Precargar servicios seleccionados (multi)
             val idsServicios = eventoAEditar.idServicio.split(",").filter { it.isNotEmpty() }
             serviciosSeleccionados.clear()
             serviciosSeleccionados.addAll(servicios.filter { it.id in idsServicios })
 
-            // Precargar mobiliarios seleccionados
             val idsMobiliarios = eventoAEditar.idMobiliario.split(",").filter { it.isNotEmpty() }
             mobiliariosSeleccionados.clear()
             mobiliariosSeleccionados.addAll(
                 mobiliarios.filter { it.id in idsMobiliarios }
             )
 
-            // Precargar empleados seleccionados
             empleadosSeleccionados.clear()
             empleadosSeleccionados.addAll(
                 usuarios.filter { it.id in eventoAEditar.listaIdsEmpleados }
             )
 
-            // Precargar datos del cliente
             val clienteEvento = clientes.find { it.id == eventoAEditar.idCliente }
             if (clienteEvento != null) {
                 nombreCliente = clienteEvento.nombre
                 telefonoCliente = clienteEvento.telefono
             }
 
-            // Precargar selección de servicios y categorías
             val precarga = mutableMapOf<String, MutableMap<String, MutableSet<String>>>()
             val precargaCantidades = mutableMapOf<String, String>()
 
@@ -158,7 +157,7 @@ fun AgregarEventoForm(
             SnackbarHost(hostState = snackbarHostState) { data ->
                 Snackbar(
                     containerColor = BrandGold,
-                    contentColor = Color.White,
+                    contentColor = BrandBlack,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp),
@@ -167,7 +166,7 @@ fun AgregarEventoForm(
                             Text(
                                 text = data.visuals.message,
                                 style = MaterialTheme.typography.bodyLarge.copy(
-                                    color = Color.White
+                                    color = BrandBlack
                                 )
                             )
                         }
@@ -302,8 +301,8 @@ fun AgregarEventoForm(
         Spacer(modifier = Modifier.height(16.dp))
 
         // Formulario de Cliente embebido
-        HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.primary)
-        Text("Datos del Cliente", style = MaterialTheme.typography.titleMedium)
+        HorizontalDivider(thickness = 1.dp, color = BrandGold.copy(alpha = 0.4f))
+        Text("Datos del Cliente", style = MaterialTheme.typography.titleMedium.copy(color = BrandGold))
 
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -341,8 +340,8 @@ fun AgregarEventoForm(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Servicio - Multi-selección CON CANTIDAD
-        Text("Servicios", style = MaterialTheme.typography.titleMedium)
+        // Servicio - Multi-selección con cantidad
+        Text("Servicios", style = MaterialTheme.typography.titleMedium.copy(color = BrandGold))
         if (serviciosActivos.isNotEmpty()) {
             Column {
                 serviciosActivos.forEach { servicio ->
@@ -357,12 +356,10 @@ fun AgregarEventoForm(
                                     onValueChange = { checked ->
                                         if (checked) {
                                             serviciosSeleccionados.add(servicio)
-                                            // Inicializar cantidad
                                             val nuevasCantidades = cantidadesServicios.toMutableMap()
                                             nuevasCantidades[servicio.id] = "1"
                                             cantidadesServicios = nuevasCantidades
 
-                                            // Inicializar estructura de selección si no existe
                                             if (seleccionServiciosCategorias[servicio.id] == null) {
                                                 val catMap = mutableMapOf<String, MutableSet<String>>()
                                                 servicio.categorias.forEach { cat ->
@@ -389,13 +386,13 @@ fun AgregarEventoForm(
                         ) {
                             Checkbox(
                                 checked = isSelected,
-                                onCheckedChange = null
+                                onCheckedChange = null,
+                                colors = CheckboxDefaults.colors(checkedColor = BrandGold)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(servicio.nombre, modifier = Modifier.weight(1f))
                         }
 
-                        // NUEVO: Campo de cantidad cuando está seleccionado
                         if (isSelected) {
                             Row(
                                 modifier = Modifier
@@ -427,7 +424,6 @@ fun AgregarEventoForm(
                                 )
                             }
 
-                            // Mostrar categorías y opciones con checkboxes
                             servicio.categorias.forEach { categoria ->
                                 Text(
                                     text = categoria.nombre,
@@ -444,6 +440,7 @@ fun AgregarEventoForm(
                                     ) {
                                         Checkbox(
                                             checked = checked,
+                                            colors = CheckboxDefaults.colors(checkedColor = BrandGold),
                                             onCheckedChange = { isChecked ->
                                                 val nuevoMapa = seleccionServiciosCategorias.toMutableMap()
                                                 val catMap = (nuevoMapa[servicio.id]?.toMutableMap() ?: mutableMapOf())
@@ -473,7 +470,7 @@ fun AgregarEventoForm(
         Spacer(modifier = Modifier.height(8.dp))
 
         // Mobiliario - Selección múltiple con barras de categorías
-        Text("Mobiliario Asignado", style = MaterialTheme.typography.titleMedium)
+        Text("Mobiliario Asignado", style = MaterialTheme.typography.titleMedium.copy(color = BrandGold))
         Spacer(modifier = Modifier.height(8.dp))
         if (categoriasMobiliario.isNotEmpty() && mobiliariosActivos.isNotEmpty()) {
             MobiliarioCategoriaSelector(
@@ -495,7 +492,7 @@ fun AgregarEventoForm(
         Spacer(modifier = Modifier.height(16.dp))
 
         // Empleados
-        Text("Empleados Asignados", style = MaterialTheme.typography.titleMedium)
+        Text("Empleados Asignados", style = MaterialTheme.typography.titleMedium.copy(color = BrandGold))
         if (empleadosActivos.isNotEmpty()) {
             LazyColumn(
                 modifier = Modifier
@@ -522,7 +519,8 @@ fun AgregarEventoForm(
                     ) {
                         Checkbox(
                             checked = isSelected,
-                            onCheckedChange = null
+                            onCheckedChange = null,
+                            colors = CheckboxDefaults.colors(checkedColor = BrandGold)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("${emp.nombre} ${emp.apellidoPaterno}")
@@ -547,7 +545,6 @@ fun AgregarEventoForm(
 
         Button(
             onClick = {
-                // Validaciones
                 if (nombreCliente.isBlank() || telefonoCliente.length != 10 ||
                     serviciosSeleccionados.isEmpty() || mobiliariosSeleccionados.isEmpty() ||
                     empleadosSeleccionados.isEmpty() || numeroPersonas.isBlank()
@@ -560,7 +557,6 @@ fun AgregarEventoForm(
 
                 val idsServicios = serviciosSeleccionados.joinToString(",") { it.id }
 
-                // Construir la estructura para serviciosSeleccionados CON CANTIDAD
                 val serviciosSeleccionadosEvento = serviciosSeleccionados.map { servicio ->
                     ServicioSeleccionado(
                         idServicio = servicio.id,
@@ -575,7 +571,6 @@ fun AgregarEventoForm(
                 }
 
                 if (eventoAEditar != null) {
-                    // Actualizar evento existente
                     val clienteExistente = clientes.find { it.nombre == nombreCliente.trim() && it.telefono == telefonoCliente.trim() }
                     val idClienteFinal = clienteExistente?.id ?: eventoAEditar.idCliente
                     val eventoActualizado = eventoAEditar.copy(
@@ -607,7 +602,6 @@ fun AgregarEventoForm(
                         }
                     )
                 } else {
-                    // Crear nuevo evento
                     val clienteExistente = clientes.find { it.nombre == nombreCliente.trim() && it.telefono == telefonoCliente.trim() }
                     if (clienteExistente != null) {
                         eventoViewModel.agregarEventoAutoId(
@@ -628,7 +622,6 @@ fun AgregarEventoForm(
                                 coroutineScope.launch {
                                     snackbarHostState.showSnackbar("Evento agregado correctamente")
                                 }
-                                // Limpiar formulario
                                 fecha = ""
                                 horaInicio = ""
                                 horaFin = ""
@@ -705,6 +698,10 @@ fun AgregarEventoForm(
                     }
                 }
             },
+            colors = ButtonDefaults.buttonColors(
+                containerColor = BrandGold,
+                contentColor = BrandBlack
+            ),
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(if (eventoAEditar != null) "Actualizar Evento" else "Guardar Evento")
@@ -813,11 +810,17 @@ fun MobiliarioCategoriaSelector(
                 modifier = Modifier
                     .clickable {
                         categoriaSeleccionada = if (isSelected) null else categoria
-                    },
+                    }
+                    .border(
+                        width = 1.dp,
+                        color = if (isSelected) BrandGold else CardBorder,
+                        shape = RoundedCornerShape(12.dp)
+                    ),
                 colors = CardDefaults.cardColors(
-                    containerColor = if (isSelected) Color(0xFFd4af37) else Color(0xFF2c2c2c)
+                    containerColor = if (isSelected) BrandGold else MaterialTheme.colorScheme.surface
                 ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                shape = RoundedCornerShape(12.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 2.dp else 0.dp)
             ) {
                 Column(
                     modifier = Modifier.padding(12.dp),
@@ -826,13 +829,13 @@ fun MobiliarioCategoriaSelector(
                     Text(
                         text = categoria.nombre,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = if (isSelected) Color.Black else Color.White
+                        color = if (isSelected) BrandBlack else MaterialTheme.colorScheme.onSurface
                     )
                     if (seleccionadosEnCategoria > 0) {
                         Text(
                             text = "$seleccionadosEnCategoria seleccionado(s)",
                             style = MaterialTheme.typography.bodySmall,
-                            color = if (isSelected) Color.Black.copy(alpha = 0.7f) else Color.White.copy(alpha = 0.7f)
+                            color = if (isSelected) BrandBlack.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                         )
                     }
                 }
@@ -846,7 +849,7 @@ fun MobiliarioCategoriaSelector(
         Text(
             text = "Opciones de ${categoria.nombre}",
             style = MaterialTheme.typography.titleSmall,
-            color = Color(0xFFd4af37)
+            color = BrandGold
         )
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -866,11 +869,17 @@ fun MobiliarioCategoriaSelector(
                         .padding(vertical = 4.dp)
                         .clickable {
                             onMobiliarioSeleccionado(mobiliario, !isSelected)
-                        },
+                        }
+                        .border(
+                            width = 1.dp,
+                            color = if (isSelected) BrandGold else CardBorder,
+                            shape = RoundedCornerShape(12.dp)
+                        ),
                     colors = CardDefaults.cardColors(
-                        containerColor = if (isSelected) Color(0xFFd4af37).copy(alpha = 0.2f) else Color(0xFF2c2c2c)
+                        containerColor = if (isSelected) WarningGoldBg else MaterialTheme.colorScheme.surface
                     ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                 ) {
                     Row(
                         modifier = Modifier
@@ -884,8 +893,7 @@ fun MobiliarioCategoriaSelector(
                                 onMobiliarioSeleccionado(mobiliario, checked)
                             },
                             colors = CheckboxDefaults.colors(
-                                checkedColor = Color(0xFFd4af37),
-                                uncheckedColor = Color.White
+                                checkedColor = BrandGold
                             )
                         )
                         Spacer(modifier = Modifier.width(12.dp))
@@ -893,12 +901,12 @@ fun MobiliarioCategoriaSelector(
                             Text(
                                 text = mobiliario.color,
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = Color.White
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
                                 text = "ID: ${mobiliario.id}",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Color.White.copy(alpha = 0.7f)
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                             )
                         }
                     }

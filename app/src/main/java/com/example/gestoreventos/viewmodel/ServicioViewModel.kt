@@ -13,8 +13,7 @@ class ServicioViewModel : ViewModel() {
         nombre: String,
         descripcion: String,
         categorias: List<CategoriaServicio>,
-        precioPorPersona: Double,
-        checklistTemplate: List<ChecklistCategoria> = emptyList(), // NUEVO parámetro
+        checklistTemplate: List<ChecklistCategoria> = emptyList(),
         onSuccess: () -> Unit,
         onFailure: (Exception) -> Unit
     ) {
@@ -24,8 +23,7 @@ class ServicioViewModel : ViewModel() {
                 nombre = nombre,
                 descripcion = descripcion,
                 categorias = categorias,
-                precioPorPersona = precioPorPersona,
-                checklistTemplate = checklistTemplate // NUEVO campo
+                checklistTemplate = checklistTemplate
             )
             repository.agregarServicio(servicio, onSuccess, onFailure)
         }

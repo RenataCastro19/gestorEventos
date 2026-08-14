@@ -1,14 +1,20 @@
 package com.example.gestoreventos.view
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.gestoreventos.ui.theme.BrandGold
+import com.example.gestoreventos.ui.theme.BrandBlack
+import com.example.gestoreventos.ui.theme.SuccessGreen
+import com.example.gestoreventos.ui.theme.ErrorRed
 import com.example.gestoreventos.viewmodel.UsuarioViewModel
 
 @Composable
@@ -26,54 +32,79 @@ fun RegistroUsuarioScreen(usuarioViewModel: UsuarioViewModel = viewModel()) {
     val opcionesRol = listOf("super_admin", "admin", "empleado")
     var expanded by remember { mutableStateOf(false) }
 
-    Column(modifier = Modifier
-        .fillMaxSize()
-        .padding(16.dp)) {
+    val camposColors = OutlinedTextFieldDefaults.colors(
+        focusedBorderColor = BrandGold,
+        focusedLabelColor = BrandGold,
+        cursorColor = BrandGold
+    )
 
-        Text("Registrar Usuario", style = MaterialTheme.typography.titleLarge)
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(16.dp)
+    ) {
+        Text(
+            "Registrar Usuario",
+            style = MaterialTheme.typography.headlineMedium.copy(
+                fontWeight = FontWeight.Bold,
+                color = BrandGold
+            )
+        )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         OutlinedTextField(
             value = nombre,
             onValueChange = { nombre = it },
             label = { Text("Nombre") },
+            colors = camposColors,
             modifier = Modifier.fillMaxWidth()
         )
+
+        Spacer(modifier = Modifier.height(8.dp))
 
         OutlinedTextField(
             value = apellidoPaterno,
             onValueChange = { apellidoPaterno = it },
             label = { Text("Apellido Paterno") },
+            colors = camposColors,
             modifier = Modifier.fillMaxWidth()
         )
+
+        Spacer(modifier = Modifier.height(8.dp))
 
         OutlinedTextField(
             value = apellidoMaterno,
             onValueChange = { apellidoMaterno = it },
             label = { Text("Apellido Materno") },
+            colors = camposColors,
             modifier = Modifier.fillMaxWidth()
         )
+
+        Spacer(modifier = Modifier.height(8.dp))
 
         OutlinedTextField(
             value = telefono,
             onValueChange = { if (it.length <= 10 && it.all { char -> char.isDigit() }) telefono = it },
             label = { Text("Teléfono") },
+            colors = camposColors,
             modifier = Modifier.fillMaxWidth(),
             supportingText = { Text("${telefono.length}/10") }
         )
+
+        Spacer(modifier = Modifier.height(8.dp))
 
         OutlinedTextField(
             value = contrasena,
             onValueChange = { contrasena = it },
             label = { Text("Contraseña") },
+            colors = camposColors,
             modifier = Modifier.fillMaxWidth(),
             visualTransformation = PasswordVisualTransformation()
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text("Selecciona el rol:")
+        Spacer(modifier = Modifier.height(16.dp))
 
         Box {
             OutlinedTextField(
@@ -81,10 +112,11 @@ fun RegistroUsuarioScreen(usuarioViewModel: UsuarioViewModel = viewModel()) {
                 onValueChange = {},
                 readOnly = true,
                 label = { Text("Rol") },
+                colors = camposColors,
                 modifier = Modifier.fillMaxWidth(),
                 trailingIcon = {
                     IconButton(onClick = { expanded = !expanded }) {
-                        Icon(Icons.Default.ArrowDropDown, contentDescription = "Expandir")
+                        Icon(Icons.Default.ArrowDropDown, contentDescription = "Expandir", tint = BrandGold)
                     }
                 }
             )
@@ -104,45 +136,49 @@ fun RegistroUsuarioScreen(usuarioViewModel: UsuarioViewModel = viewModel()) {
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
-        Button(onClick = {
-            if (nombre.isBlank() || contrasena.isBlank()) {
-                mensaje = "Completa todos los campos obligatorios"
-                isSuccess = false
-                return@Button
-            }
-
-            // Genera un ID aleatorio de 4 dígitos
-            val id = (1000..9999).random().toString()
-
-
-
-            usuarioViewModel.registrarUsuarioConAuth(
-                id = id,
-                nombre = nombre,
-                apellidoPaterno = apellidoPaterno,
-                apellidoMaterno = apellidoMaterno,
-                telefono = telefono,
-                contrasena = contrasena,
-                rol = rol,
-                onSuccess = {
-                    mensaje = "Usuario registrado correctamente"
-                    isSuccess = true
-                    // Limpiar campos
-                    nombre = ""
-                    apellidoPaterno = ""
-                    apellidoMaterno = ""
-                    telefono = ""
-                    contrasena = ""
-                    rol = "empleado"
-                },
-                onFailure = { exception ->
-                    mensaje = "Error: ${exception.message}"
+        Button(
+            onClick = {
+                if (nombre.isBlank() || contrasena.isBlank()) {
+                    mensaje = "Completa todos los campos obligatorios"
                     isSuccess = false
+                    return@Button
                 }
-            )
-        }) {
+
+                // Genera un ID aleatorio de 4 dígitos
+                val id = (1000..9999).random().toString()
+
+                usuarioViewModel.registrarUsuarioConAuth(
+                    id = id,
+                    nombre = nombre,
+                    apellidoPaterno = apellidoPaterno,
+                    apellidoMaterno = apellidoMaterno,
+                    telefono = telefono,
+                    contrasena = contrasena,
+                    rol = rol,
+                    onSuccess = {
+                        mensaje = "Usuario registrado correctamente"
+                        isSuccess = true
+                        nombre = ""
+                        apellidoPaterno = ""
+                        apellidoMaterno = ""
+                        telefono = ""
+                        contrasena = ""
+                        rol = "empleado"
+                    },
+                    onFailure = { exception ->
+                        mensaje = "Error: ${exception.message}"
+                        isSuccess = false
+                    }
+                )
+            },
+            colors = ButtonDefaults.buttonColors(
+                containerColor = BrandGold,
+                contentColor = BrandBlack
+            ),
+            modifier = Modifier.fillMaxWidth()
+        ) {
             Text("Registrar")
         }
 
@@ -150,8 +186,7 @@ fun RegistroUsuarioScreen(usuarioViewModel: UsuarioViewModel = viewModel()) {
             Spacer(modifier = Modifier.height(12.dp))
             Text(
                 text = mensaje,
-                color = if (isSuccess) MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.error
+                color = if (isSuccess) SuccessGreen else ErrorRed
             )
         }
     }

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
@@ -24,6 +25,13 @@ import androidx.compose.ui.window.DialogProperties
 import com.example.gestoreventos.model.Servicio
 import com.example.gestoreventos.viewmodel.ServicioViewModel
 import com.example.gestoreventos.ui.theme.BrandGold
+import com.example.gestoreventos.ui.theme.BrandBlack
+import com.example.gestoreventos.ui.theme.CardBorder
+import com.example.gestoreventos.ui.theme.SuccessGreen
+import com.example.gestoreventos.ui.theme.SuccessGreenBg
+import com.example.gestoreventos.ui.theme.ErrorRed
+import com.example.gestoreventos.ui.theme.ErrorRedBg
+import com.example.gestoreventos.ui.theme.TextMuted
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
@@ -43,7 +51,6 @@ fun ServiciosListScreen(
     fun cargarServicios() {
         viewModel.obtenerServicios { lista ->
             servicios = lista
-            println("DEBUG: Servicios cargados: ${lista.size}")
         }
     }
 
@@ -56,7 +63,6 @@ fun ServiciosListScreen(
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                println("DEBUG: Pantalla resumida, recargando servicios...")
                 cargarServicios()
             }
         }
@@ -68,7 +74,6 @@ fun ServiciosListScreen(
 
     // Function to handle service edit
     val onEditarServicio: (Servicio) -> Unit = { servicio ->
-        println("DEBUG: Editando servicio ID: ${servicio.id}")
         onAgregarServicioClick(servicio)
     }
 
@@ -91,10 +96,7 @@ fun ServiciosListScreen(
         // Botón de acción
         ServiciosButton(
             text = "Agregar Servicio",
-            onClick = {
-                println("DEBUG: Agregando nuevo servicio")
-                onAgregarServicioClick(null)
-            },
+            onClick = { onAgregarServicioClick(null) },
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -138,24 +140,25 @@ fun ElegantServicioItem(
 ) {
     var mostrarDetalles by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val inhabilitado = servicio.estado == "inhabilitado"
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { mostrarDetalles = true }
             .shadow(
-                elevation = 6.dp,
+                elevation = 3.dp,
                 shape = RoundedCornerShape(16.dp),
-                spotColor = BrandGold.copy(alpha = 0.2f)
+                spotColor = Color.Black.copy(alpha = 0.15f)
             )
             .border(
                 width = 1.dp,
-                color = BrandGold.copy(alpha = 0.3f),
+                color = if (inhabilitado) ErrorRedBg.copy(alpha = 0.6f) else CardBorder,
                 shape = RoundedCornerShape(16.dp)
             ),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (servicio.estado == "inhabilitado") Color.Gray.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surface
+            containerColor = if (inhabilitado) ErrorRedBg.copy(alpha = 0.4f) else MaterialTheme.colorScheme.surface
         )
     ) {
         Column(
@@ -166,32 +169,33 @@ fun ElegantServicioItem(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "ID: ${servicio.id}",
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
-                            color = if (servicio.estado == "inhabilitado") Color.Gray else BrandGold
+                            color = if (inhabilitado) TextMuted else BrandGold
                         )
                     )
-                    if (servicio.estado == "inhabilitado") {
+                    if (inhabilitado) {
                         Text(
                             text = "ESTADO: INHABILITADO",
                             style = MaterialTheme.typography.bodySmall.copy(
                                 fontWeight = FontWeight.Bold,
-                                color = Color.Red
+                                color = ErrorRed
                             )
                         )
                     }
                 }
-                if (servicio.estado == "inhabilitado") {
+                Spacer(modifier = Modifier.width(8.dp))
+                if (inhabilitado) {
                     Button(
                         onClick = {
                             viewModel.habilitarServicio(servicio, onSuccess = { onRecargarLista() }, onFailure = {})
                         },
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF4CAF50), // Verde
-                            contentColor = Color.White
+                            containerColor = SuccessGreenBg,
+                            contentColor = SuccessGreen
                         ),
                         modifier = Modifier.height(36.dp)
                     ) {
@@ -203,8 +207,8 @@ fun ElegantServicioItem(
                             viewModel.inhabilitarServicio(servicio, onSuccess = { onRecargarLista() }, onFailure = {})
                         },
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.Red,
-                            contentColor = Color.White
+                            containerColor = ErrorRedBg,
+                            contentColor = ErrorRed
                         ),
                         modifier = Modifier.height(36.dp)
                     ) {
@@ -216,30 +220,32 @@ fun ElegantServicioItem(
             // Información principal
             Column {
                 Text(
-                    text = "Nombre del Servicio",
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    text = "NOMBRE DEL SERVICIO",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        color = BrandGold.copy(alpha = 0.7f),
+                        letterSpacing = 0.5.sp
                     )
                 )
                 Text(
                     text = servicio.nombre,
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
-                        color = if (servicio.estado == "inhabilitado") Color.Gray else MaterialTheme.colorScheme.onSurface
+                        color = if (inhabilitado) TextMuted else MaterialTheme.colorScheme.onSurface
                     )
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = "Descripción",
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    text = "DESCRIPCIÓN",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        color = BrandGold.copy(alpha = 0.7f),
+                        letterSpacing = 0.5.sp
                     )
                 )
                 Text(
                     text = servicio.descripcion,
                     style = MaterialTheme.typography.bodyLarge.copy(
                         fontWeight = FontWeight.Medium,
-                        color = if (servicio.estado == "inhabilitado") Color.Gray else MaterialTheme.colorScheme.onSurface
+                        color = if (inhabilitado) TextMuted else MaterialTheme.colorScheme.onSurface
                     )
                 )
             }
@@ -251,7 +257,6 @@ fun ElegantServicioItem(
             servicio = servicio,
             onDismiss = { mostrarDetalles = false },
             onEditClick = {
-                println("DEBUG: Click en botón Editar del diálogo")
                 mostrarDetalles = false
                 scope.launch {
                     delay(100)
@@ -268,119 +273,121 @@ fun DetalleServicioDialog(
     onDismiss: () -> Unit,
     onEditClick: () -> Unit = {}
 ) {
-    val scope = rememberCoroutineScope()
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(dismissOnClickOutside = true)
     ) {
         Surface(
             shape = RoundedCornerShape(16.dp),
-            tonalElevation = 8.dp,
+            tonalElevation = 2.dp,
             color = MaterialTheme.colorScheme.surface
         ) {
-            Column(
-                modifier = Modifier.padding(24.dp).widthIn(min = 300.dp, max = 400.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = "Detalle del Servicio",
-                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold, color = BrandGold)
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Estado del servicio
-                if (servicio.estado == "inhabilitado") {
-                    Text(
-                        text = "ESTADO: INHABILITADO",
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            color = Color.Red,
-                            fontWeight = FontWeight.Bold
-                        ),
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
-                }
-
-                // Información del servicio
-                Text(text = "Nombre: ${servicio.nombre}",
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.fillMaxWidth())
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(text = "Descripción:",
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                    modifier = Modifier.fillMaxWidth())
-                Text(text = servicio.descripcion,
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.fillMaxWidth())
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(text = "Precio por persona: $${servicio.precioPorPersona}",
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.fillMaxWidth())
-
-                // Mostrar categorías si existen
-                if (servicio.categorias.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(text = "Categorías:",
-                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                        modifier = Modifier.fillMaxWidth())
-
-                    servicio.categorias.forEach { categoria ->
-                        Text(text = "- ${categoria.nombre}: ${categoria.opciones.joinToString(", ")}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.fillMaxWidth()
-                                .padding(start = 8.dp, top = 4.dp))
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Botones de acción
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+            SelectionContainer {
+                Column(
+                    modifier = Modifier.padding(24.dp).widthIn(min = 300.dp, max = 400.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Botón de editar
-                    Button(
-                        onClick = {
-                            println("DEBUG: Botón Editar presionado")
-                            onEditClick()
-                        },
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(end = 8.dp)
-                            .height(48.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = BrandGold,
-                            contentColor = Color.White
+                    Text(
+                        text = "Detalle del Servicio",
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold, color = BrandGold)
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Estado del servicio
+                    if (servicio.estado == "inhabilitado") {
+                        Text(
+                            text = "ESTADO: INHABILITADO",
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                color = ErrorRed,
+                                fontWeight = FontWeight.Bold
+                            ),
+                            modifier = Modifier.padding(bottom = 8.dp)
                         )
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = "Editar",
-                                modifier = Modifier.size(18.dp)
+                    }
+
+                    // Información del servicio
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = "NOMBRE",
+                            style = MaterialTheme.typography.labelSmall.copy(color = BrandGold.copy(alpha = 0.7f))
+                        )
+                        Text(text = servicio.nombre, style = MaterialTheme.typography.titleMedium)
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = "DESCRIPCIÓN",
+                            style = MaterialTheme.typography.labelSmall.copy(color = BrandGold.copy(alpha = 0.7f))
+                        )
+                        Text(text = servicio.descripcion, style = MaterialTheme.typography.bodyLarge)
+                    }
+
+                    // Mostrar categorías si existen
+                    if (servicio.categorias.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "CATEGORÍAS",
+                            style = MaterialTheme.typography.labelSmall.copy(color = BrandGold.copy(alpha = 0.7f)),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        servicio.categorias.forEach { categoria ->
+                            Text(
+                                text = "- ${categoria.nombre}: ${categoria.opciones.joinToString(", ")}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 4.dp)
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Editar")
                         }
                     }
 
-                    // Botón de cerrar
-                    Button(
-                        onClick = onDismiss,
-                        modifier = Modifier.weight(1f).padding(start = 8.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // Botones de acción
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("Cerrar")
+                        // Botón de editar
+                        Button(
+                            onClick = onEditClick,
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(end = 8.dp)
+                                .height(48.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = BrandGold,
+                                contentColor = BrandBlack
+                            )
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = "Editar",
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Editar")
+                            }
+                        }
+
+                        // Botón de cerrar
+                        Button(
+                            onClick = onDismiss,
+                            modifier = Modifier.weight(1f).padding(start = 8.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        ) {
+                            Text("Cerrar")
+                        }
                     }
                 }
             }
@@ -397,16 +404,16 @@ fun ServiciosButton(
     Button(
         onClick = onClick,
         modifier = modifier
-            .height(60.dp)
+            .height(56.dp)
             .shadow(
-                elevation = 6.dp,
+                elevation = 2.dp,
                 shape = RoundedCornerShape(12.dp),
-                spotColor = BrandGold.copy(alpha = 0.3f)
+                spotColor = Color.Black.copy(alpha = 0.12f)
             )
             .clip(RoundedCornerShape(12.dp))
             .border(
-                width = 2.dp,
-                color = BrandGold,
+                width = 1.dp,
+                color = CardBorder,
                 shape = RoundedCornerShape(12.dp)
             ),
         colors = ButtonDefaults.buttonColors(

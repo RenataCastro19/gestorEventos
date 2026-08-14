@@ -2,25 +2,28 @@ package com.example.gestoreventos.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Colores principales de la marca
+// Marca (usado en pantallas oscuras: Login)
 val BrandGold = Color(0xFFD4AF37)
-val BrandBlack = Color(0xFF000000)
-val BrandWhite = Color(0xFFFFFFFF)
-
-// Variaciones del dorado
 val GoldLight = Color(0xFFE6C866)
 val GoldDark = Color(0xFFB8941F)
 
-// Variaciones del negro
-val BlackLight = Color(0xFF1A1A1A)
-val BlackMedium = Color(0xFF333333)
+val BrandBlack = Color(0xFF161513)
+val BlackSurface = Color(0xFF221F1B)
+val BlackBorder = Color(0xFF3A352C)
 
-// Grises elegantes
-val GrayLight = Color(0xFF000000)
-val GrayMedium = Color(0xFFE0E0E0)
-val GrayDark = Color(0xFF757575)
+// Operativo (usado en el resto de la app: listas, formularios, detalle)
+val CreamBackground = Color(0xFFFAF9F6)
+val SurfaceWhite = Color(0xFFFFFFFF)
+val CardBorder = Color(0xFFEAE7DF)
 
-// Colores para estados
-val SuccessGreen = Color(0xFF4CAF50)
-val ErrorRed = Color(0xFFF44336)
-val WarningOrange = Color(0xFFFF9800)
+val TextPrimary = Color(0xFF211E19)
+val TextSecondary = Color(0xFF6B6B6B)
+val TextMuted = Color(0xFF9A938A)
+
+// Estados
+val SuccessGreen = Color(0xFF3B6D11)
+val SuccessGreenBg = Color(0xFFE8F3E4)
+val WarningGold = Color(0xFF8A6A12)
+val WarningGoldBg = Color(0xFFFBF3DF)
+val ErrorRed = Color(0xFFB3261E)
+val ErrorRedBg = Color(0xFFFCEBEB)
