@@ -26,6 +26,7 @@ fun HomeScreenAdmin(
     onEmpleadosClick: () -> Unit = {},
     onEventosClick: () -> Unit = {},
     onServiciosClick: () -> Unit = {},
+    onGastosClick: () -> Unit = {},
     onLogoutClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -82,6 +83,12 @@ fun HomeScreenAdmin(
             ElegantButton(
                 text = "Servicios",
                 onClick = onServiciosClick,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            ElegantButton(
+                text = "Gastos",
+                onClick = onGastosClick,
                 modifier = Modifier.fillMaxWidth()
             )
 

@@ -25,13 +25,7 @@ import com.example.gestoreventos.viewmodel.SuperAdminViewModel
 import com.example.gestoreventos.viewmodel.ServicioViewModel
 import com.example.gestoreventos.model.Evento
 import com.example.gestoreventos.model.Servicio
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.compose.runtime.collectAsState
-import android.util.Log
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -81,6 +75,7 @@ class MainActivity : ComponentActivity() {
                                     onEmpleadosClick = { navController.navigate("empleados_list") },
                                     onEventosClick = { navController.navigate("eventos_list") },
                                     onServiciosClick = { navController.navigate("servicios_list") },
+                                    onGastosClick = { navController.navigate("gastos_list") },
                                     onLogoutClick = {
                                         usuarioViewModel.logout()
                                         navController.navigate("login") {
@@ -89,7 +84,6 @@ class MainActivity : ComponentActivity() {
                                     }
                                 )
                             } else {
-                                // Redirigir al login si no es super admin
                                 LaunchedEffect(Unit) {
                                     navController.navigate("login") {
                                         popUpTo("login") { inclusive = true }
@@ -107,6 +101,7 @@ class MainActivity : ComponentActivity() {
                                     onEmpleadosClick = { navController.navigate("empleados_list_admin") },
                                     onEventosClick = { navController.navigate("eventos_list") },
                                     onServiciosClick = { navController.navigate("servicios_list") },
+                                    onGastosClick = { navController.navigate("gastos_list") },
                                     onLogoutClick = {
                                         usuarioViewModel.logout()
                                         navController.navigate("login") {
@@ -115,7 +110,6 @@ class MainActivity : ComponentActivity() {
                                     }
                                 )
                             } else {
-                                // Redirigir al login si no es admin
                                 LaunchedEffect(Unit) {
                                     navController.navigate("login") {
                                         popUpTo("login") { inclusive = true }
@@ -165,7 +159,6 @@ class MainActivity : ComponentActivity() {
                             if (usuarioActual?.rol == "super_admin") {
                                 val superAdminViewModel: SuperAdminViewModel = viewModel()
 
-                                // Establecer el usuario actual en el ViewModel
                                 LaunchedEffect(usuarioActual) {
                                     usuarioActual?.let { usuario ->
                                         superAdminViewModel.establecerUsuarioActual(usuario)
@@ -190,7 +183,6 @@ class MainActivity : ComponentActivity() {
                             if (usuarioActual?.rol == "admin") {
                                 val superAdminViewModel: SuperAdminViewModel = viewModel()
 
-                                // Establecer el usuario actual en el ViewModel
                                 LaunchedEffect(usuarioActual) {
                                     usuarioActual?.let { usuario ->
                                         superAdminViewModel.establecerUsuarioActual(usuario)
@@ -278,16 +270,14 @@ class MainActivity : ComponentActivity() {
                             }
                         }
 
-                        // SERVICIOS - RUTAS ACTUALIZADAS
+                        // SERVICIOS
                         composable("servicios_list") {
                             if (usuarioActual?.rol == "super_admin" || usuarioActual?.rol == "admin") {
                                 ServiciosListScreen(
                                     onAgregarServicioClick = { servicio ->
                                         if (servicio != null) {
-                                            // Editar servicio existente
                                             navController.navigate("editar_servicio/${servicio.id}")
                                         } else {
-                                            // Agregar nuevo servicio
                                             navController.navigate("agregar_servicio")
                                         }
                                     }
@@ -329,7 +319,6 @@ class MainActivity : ComponentActivity() {
                                 val servicioViewModel: ServicioViewModel = viewModel()
                                 var servicioAEditar by remember { mutableStateOf<Servicio?>(null) }
 
-                                // Cargar el servicio a editar
                                 LaunchedEffect(servicioId) {
                                     if (servicioId != null) {
                                         servicioViewModel.obtenerServicioPorId(servicioId) { servicio ->
@@ -338,7 +327,6 @@ class MainActivity : ComponentActivity() {
                                     }
                                 }
 
-                                // Mostrar el formulario cuando el servicio esté cargado
                                 if (servicioAEditar != null) {
                                     AgregarServicioForm(
                                         servicioEditar = servicioAEditar,
@@ -348,7 +336,6 @@ class MainActivity : ComponentActivity() {
                                         }
                                     )
                                 } else {
-                                    // Mostrar indicador de carga mientras se obtiene el servicio
                                     Box(
                                         modifier = Modifier.fillMaxSize(),
                                         contentAlignment = Alignment.Center
@@ -365,12 +352,50 @@ class MainActivity : ComponentActivity() {
                             }
                         }
 
-                        // Ruta del calendario - accesible para todos los roles
-                        composable("calendario") {
-                            CalendarioScreen(usuarioActual = usuarioActual)
+                        // GASTOS - solo admin y super_admin
+                        composable("gastos_list") {
+                            if (usuarioActual?.rol == "super_admin" || usuarioActual?.rol == "admin") {
+                                GastosListScreen(
+                                    usuarioActual = usuarioActual!!,
+                                    onAgregarGastoClick = { navController.navigate("agregar_gasto") }
+                                )
+                            } else {
+                                LaunchedEffect(Unit) {
+                                    navController.navigate("login") {
+                                        popUpTo("login") { inclusive = true }
+                                    }
+                                }
+                            }
                         }
 
-                        // NUEVA RUTA: Checklist del evento
+                        composable("agregar_gasto") {
+                            if (usuarioActual?.rol == "super_admin" || usuarioActual?.rol == "admin") {
+                                AgregarGastoForm(
+                                    usuarioActual = usuarioActual!!,
+                                    onGuardarExitoso = {
+                                        navController.popBackStack()
+                                    }
+                                )
+                            } else {
+                                LaunchedEffect(Unit) {
+                                    navController.navigate("login") {
+                                        popUpTo("login") { inclusive = true }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Ruta del calendario - accesible para todos los roles
+                        composable("calendario") {
+                            CalendarioScreen(
+                                usuarioActual = usuarioActual,
+                                onEditarEventoClick = { eventoId ->
+                                    navController.navigate("editar_evento/$eventoId")
+                                }
+                            )
+                        }
+
+                        // Checklist del evento
                         composable(
                             route = "checklist/{eventoId}",
                             arguments = listOf(

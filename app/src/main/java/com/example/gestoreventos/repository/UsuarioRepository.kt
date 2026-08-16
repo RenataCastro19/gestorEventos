@@ -2,7 +2,6 @@ package com.example.gestoreventos.repository
 
 import com.example.gestoreventos.model.Usuario
 import com.google.firebase.firestore.FirebaseFirestore
-import android.util.Log
 
 class UsuarioRepository {
     private val db = FirebaseFirestore.getInstance()
@@ -12,15 +11,35 @@ class UsuarioRepository {
         onSuccess: () -> Unit,
         onFailure: (Exception) -> Unit
     ) {
+        // La contraseña real ya vive de forma segura en Firebase Authentication.
+        // Aquí la limpiamos antes de guardar para que NUNCA quede en texto plano en Firestore.
+        val usuarioSinContrasena = usuario.copy(contrasena = "")
         db.collection("usuarios")
             .document(usuario.id)
-            .set(usuario)
+            .set(usuarioSinContrasena)
             .addOnSuccessListener {
                 onSuccess()
             }
             .addOnFailureListener { exception ->
                 onFailure(exception)
             }
+    }
+
+    // Guarda un espejo mínimo {rol} en roles/{uid}, donde uid es el UID real de
+    // Firebase Auth (distinto del id de 4 dígitos que usas como documento en "usuarios").
+    // Las reglas de seguridad de Firestore necesitan esto para poder verificar el rol
+    // del usuario que hace la petición.
+    fun registrarRolParaReglas(
+        uid: String,
+        rol: String,
+        onSuccess: () -> Unit,
+        onFailure: (Exception) -> Unit
+    ) {
+        db.collection("roles")
+            .document(uid)
+            .set(mapOf("rol" to rol))
+            .addOnSuccessListener { onSuccess() }
+            .addOnFailureListener { onFailure(it) }
     }
 
     fun verificarIdDisponible(id: String, onResult: (Boolean) -> Unit) {
@@ -55,30 +74,10 @@ class UsuarioRepository {
             }
     }
 
-    // Nueva función para login
-    fun login(
-        id: String,
-        contrasena: String,
-        onSuccess: (Usuario) -> Unit,
-        onFailure: (String) -> Unit
-    ) {
-        db.collection("usuarios").document(id).get()
-            .addOnSuccessListener { document ->
-                if (document.exists()) {
-                    val usuario = document.toObject(Usuario::class.java)
-                    if (usuario != null && usuario.contrasena == contrasena) {
-                        onSuccess(usuario)
-                    } else {
-                        onFailure("Contraseña incorrecta")
-                    }
-                } else {
-                    onFailure("Usuario no encontrado")
-                }
-            }
-            .addOnFailureListener {
-                onFailure("Error al conectar con la base de datos")
-            }
-    }
+    // NOTA: se quitó la función login(id, contrasena, ...) que comparaba contraseñas en
+    // texto plano contra Firestore. Estaba sin usar — UsuarioViewModel.login() ya usa
+    // Firebase Auth (signInWithEmailAndPassword), que es lo correcto. Dejarla ahí era
+    // riesgo sin ningún beneficio.
 
     fun verificarSuperAdminExiste(onResult: (Boolean) -> Unit) {
         db.collection("usuarios")
@@ -111,9 +110,10 @@ class UsuarioRepository {
         onSuccess: () -> Unit,
         onFailure: (Exception) -> Unit
     ) {
+        val usuarioSinContrasena = usuario.copy(contrasena = "")
         db.collection("usuarios")
             .document(usuario.id)
-            .set(usuario)
+            .set(usuarioSinContrasena)
             .addOnSuccessListener { onSuccess() }
             .addOnFailureListener { exception -> onFailure(exception) }
     }

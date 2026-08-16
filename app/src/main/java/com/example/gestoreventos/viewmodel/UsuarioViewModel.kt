@@ -6,19 +6,15 @@ import com.example.gestoreventos.repository.UsuarioRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import java.util.UUID
 import com.google.firebase.auth.FirebaseAuth
-import android.util.Log
 
 class UsuarioViewModel : ViewModel() {
     private val repository = UsuarioRepository()
     private val auth = FirebaseAuth.getInstance()
 
-    // Estado del usuario actual
     private val _usuarioActual = MutableStateFlow<Usuario?>(null)
     val usuarioActual: StateFlow<Usuario?> = _usuarioActual.asStateFlow()
 
-    // Estado de loading para el login
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
@@ -49,7 +45,7 @@ class UsuarioViewModel : ViewModel() {
         repository.obtenerUsuarioPorId(id, onResult)
     }
 
-    // Nuevo registro de usuario usando FirebaseAuth
+    // Registro de usuario usando FirebaseAuth
     fun registrarUsuarioConAuth(
         id: String,
         nombre: String,
@@ -64,17 +60,33 @@ class UsuarioViewModel : ViewModel() {
         val email = "$id@miapp.com"
 
         auth.createUserWithEmailAndPassword(email, contrasena)
-            .addOnSuccessListener {
-                // Si se crea en Auth, lo guardamos en Firestore
+            .addOnSuccessListener { authResult ->
+                val uid = authResult.user?.uid
                 val usuario = Usuario(id, nombre, apellidoPaterno, apellidoMaterno, telefono, contrasena, rol)
-                repository.agregarUsuario(usuario, onSuccess, onFailure)
+                repository.agregarUsuario(
+                    usuario = usuario,
+                    onSuccess = {
+                        // Espejo del rol en roles/{uid} para que las Reglas de Seguridad de
+                        // Firestore puedan verificarlo (ver UsuarioRepository.registrarRolParaReglas)
+                        if (uid != null) {
+                            repository.registrarRolParaReglas(
+                                uid = uid,
+                                rol = rol,
+                                onSuccess = {},
+                                onFailure = {}
+                            )
+                        }
+                        onSuccess()
+                    },
+                    onFailure = onFailure
+                )
             }
             .addOnFailureListener { e ->
                 onFailure(e)
             }
     }
 
-    // Nuevo login usando FirebaseAuth con ID y contraseña
+    // Login usando FirebaseAuth con ID y contraseña
     fun login(
         id: String,
         contrasena: String,
@@ -84,8 +96,7 @@ class UsuarioViewModel : ViewModel() {
         _isLoading.value = true
         val email = "$id@miapp.com"
         auth.signInWithEmailAndPassword(email, contrasena)
-            .addOnSuccessListener { authResult ->
-                // Buscar datos del usuario en Firestore por ID
+            .addOnSuccessListener {
                 repository.obtenerUsuarioPorId(id) { usuario ->
                     _isLoading.value = false
                     if (usuario != null) {
@@ -96,7 +107,7 @@ class UsuarioViewModel : ViewModel() {
                     }
                 }
             }
-            .addOnFailureListener { e ->
+            .addOnFailureListener {
                 _isLoading.value = false
                 onFailure("ID o contraseña incorrectos")
             }
@@ -106,13 +117,12 @@ class UsuarioViewModel : ViewModel() {
         _usuarioActual.value = null
     }
 
-    // Función para verificar permisos
     fun tienePermiso(permisoRequerido: String): Boolean {
         val usuario = _usuarioActual.value ?: return false
         return when (permisoRequerido) {
             "super_admin" -> usuario.rol == "super_admin"
             "admin" -> usuario.rol == "super_admin" || usuario.rol == "admin"
-            "empleado" -> true // Todos tienen permisos de empleado
+            "empleado" -> true
             else -> false
         }
     }
