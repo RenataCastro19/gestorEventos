@@ -31,6 +31,7 @@ import com.example.gestoreventos.ui.theme.BrandGold
 import com.example.gestoreventos.ui.theme.BrandBlack
 import com.example.gestoreventos.ui.theme.CardBorder
 import com.example.gestoreventos.ui.theme.WarningGoldBg
+import com.example.gestoreventos.viewmodel.PagoViewModel
 import androidx.compose.ui.text.font.FontWeight
 import kotlinx.coroutines.launch
 
@@ -44,6 +45,7 @@ fun AgregarEventoForm(
     servicioViewModel: ServicioViewModel = ServicioViewModel(),
     mobiliarioViewModel: MobiliarioViewModel = MobiliarioViewModel(),
     usuarioViewModel: UsuarioViewModel = UsuarioViewModel(),
+    pagoViewModel: PagoViewModel = PagoViewModel(),
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -618,10 +620,11 @@ fun AgregarEventoForm(
                             precioTotal = precioTotal.toDoubleOrNull() ?: 0.0,
                             anticipo = anticipo.toDoubleOrNull() ?: 0.0,
                             serviciosSeleccionados = serviciosSeleccionadosEvento,
-                            onSuccess = {
+                            onSuccess = { eventoId ->
                                 coroutineScope.launch {
                                     snackbarHostState.showSnackbar("Evento agregado correctamente")
                                 }
+                                registrarAnticipoInicial(pagoViewModel, eventoId, anticipo)
                                 fecha = ""
                                 horaInicio = ""
                                 horaFin = ""
@@ -663,10 +666,11 @@ fun AgregarEventoForm(
                                     precioTotal = precioTotal.toDoubleOrNull() ?: 0.0,
                                     anticipo = anticipo.toDoubleOrNull() ?: 0.0,
                                     serviciosSeleccionados = serviciosSeleccionadosEvento,
-                                    onSuccess = {
+                                    onSuccess = { eventoId ->
                                         coroutineScope.launch {
                                             snackbarHostState.showSnackbar("Evento agregado correctamente")
                                         }
+                                        registrarAnticipoInicial(pagoViewModel, eventoId, anticipo)
                                         fecha = ""
                                         horaInicio = ""
                                         horaFin = ""
@@ -751,6 +755,33 @@ fun <T> DropdownSelector(
             }
         }
     }
+}
+
+// Registra el anticipo capturado en el formulario como el primer movimiento en "pagos".
+// El campo evento.anticipo NO se toca después de esto — sigue siendo el dato fijo que
+// usa el contrato/PDF. Este Pago es lo que alimenta el corte mensual y el saldo pendiente.
+private fun registrarAnticipoInicial(pagoViewModel: PagoViewModel, eventoId: String, anticipoTexto: String) {
+    val monto = anticipoTexto.toDoubleOrNull() ?: 0.0
+    if (monto <= 0.0) return
+
+    val hoy = Calendar.getInstance()
+    val fechaHoy = String.format(
+        "%02d/%02d/%04d",
+        hoy.get(Calendar.DAY_OF_MONTH),
+        hoy.get(Calendar.MONTH) + 1,
+        hoy.get(Calendar.YEAR)
+    )
+    val mesHoy = String.format("%04d-%02d", hoy.get(Calendar.YEAR), hoy.get(Calendar.MONTH) + 1)
+
+    pagoViewModel.agregarPago(
+        idEvento = eventoId,
+        monto = monto,
+        tipo = "anticipo",
+        fecha = fechaHoy,
+        mes = mesHoy,
+        onSuccess = {},
+        onFailure = {}
+    )
 }
 
 fun showDatePicker(context: Context, onDateSelected: (String) -> Unit) {

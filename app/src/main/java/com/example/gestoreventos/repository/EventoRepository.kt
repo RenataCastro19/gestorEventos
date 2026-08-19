@@ -13,33 +13,24 @@ class EventoRepository {
         onSuccess: () -> Unit,
         onFailure: (Exception) -> Unit
     ) {
-        println("DEBUG: Guardando evento en Firebase - ID: '${evento.id}', Cliente ID: '${evento.idCliente}'")
         db.collection("eventos")
             .document(evento.id)
             .set(evento)
             .addOnSuccessListener {
-                println("DEBUG: Evento guardado exitosamente en Firebase")
                 onSuccess()
             }
             .addOnFailureListener { e ->
-                println("DEBUG: Error al guardar evento: ${e.message}")
                 onFailure(e)
             }
     }
 
     fun obtenerEventos(onResult: (List<Evento>) -> Unit) {
-        println("DEBUG: Cargando eventos desde Firebase...")
         db.collection("eventos").get()
             .addOnSuccessListener { snapshot ->
                 val lista = snapshot.documents.mapNotNull { it.toObject(Evento::class.java) }
-                println("DEBUG: Eventos cargados desde Firebase: ${lista.size}")
-                lista.forEach { evento ->
-                    println("DEBUG: Evento cargado - ID: '${evento.id}', Cliente ID: '${evento.idCliente}'")
-                }
                 onResult(lista)
             }
-            .addOnFailureListener { error ->
-                println("DEBUG: Error al cargar eventos: ${error.message}")
+            .addOnFailureListener {
                 onResult(emptyList())
             }
     }
@@ -68,8 +59,6 @@ class EventoRepository {
 
     /**
      * Obtiene todos los eventos como Task para usar con corutinas
-     *
-     * @return Task con lista de eventos
      */
     fun obtenerTodosLosEventos(): Task<QuerySnapshot> {
         return db.collection("eventos").get()

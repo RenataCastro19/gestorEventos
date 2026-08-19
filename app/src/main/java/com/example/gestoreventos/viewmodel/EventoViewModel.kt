@@ -3,12 +3,9 @@ package com.example.gestoreventos.viewmodel
 import androidx.lifecycle.ViewModel
 import com.example.gestoreventos.model.Evento
 import com.example.gestoreventos.repository.EventoRepository
-import kotlin.random.Random
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.launch
 import com.example.gestoreventos.model.ServicioSeleccionado
 
 class EventoViewModel : ViewModel() {
@@ -56,7 +53,7 @@ class EventoViewModel : ViewModel() {
         precioTotal: Double = 0.0,
         anticipo: Double = 0.0,
         serviciosSeleccionados: List<ServicioSeleccionado> = emptyList(),
-        onSuccess: () -> Unit,
+        onSuccess: (String) -> Unit, // ahora devuelve el ID del evento recién creado
         onFailure: (Exception) -> Unit
     ) {
         val id = (10000..99999).random().toString()
@@ -76,7 +73,7 @@ class EventoViewModel : ViewModel() {
             anticipo = anticipo,
             serviciosSeleccionados = serviciosSeleccionados
         )
-        agregarEvento(evento, onSuccess, onFailure)
+        agregarEvento(evento, { onSuccess(id) }, onFailure)
     }
 
     fun actualizarEvento(

@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import kotlinx.coroutines.delay
@@ -37,12 +38,14 @@ import com.example.gestoreventos.model.Servicio
 import com.example.gestoreventos.model.Mobiliario
 import com.example.gestoreventos.model.Cliente
 import com.example.gestoreventos.model.CategoriaMobiliario
+import com.example.gestoreventos.model.Pago
 import com.example.gestoreventos.viewmodel.SuperAdminViewModel
 import com.example.gestoreventos.viewmodel.UsuarioViewModel
 import com.example.gestoreventos.viewmodel.ServicioViewModel
 import com.example.gestoreventos.viewmodel.MobiliarioViewModel
 import com.example.gestoreventos.viewmodel.ClienteViewModel
 import com.example.gestoreventos.viewmodel.CategoriaMobiliarioViewModel
+import com.example.gestoreventos.viewmodel.PagoViewModel
 import com.example.gestoreventos.ui.theme.BrandGold
 import com.example.gestoreventos.ui.theme.BrandBlack
 import com.example.gestoreventos.ui.theme.CardBorder
@@ -533,6 +536,7 @@ fun EventoDetallesDialog(
     val mobiliarioViewModel: MobiliarioViewModel = viewModel()
     val clienteViewModel: ClienteViewModel = viewModel()
     val categoriaMobiliarioViewModel: CategoriaMobiliarioViewModel = viewModel()
+    val pagoViewModel: PagoViewModel = viewModel()
 
     var empleados by remember { mutableStateOf(listOf<Usuario>()) }
     var servicio by remember { mutableStateOf<Servicio?>(null) }
@@ -544,12 +548,23 @@ fun EventoDetallesDialog(
     var mostrarDialogoPdf by remember { mutableStateOf(false) }
     var pdfUriGenerado by remember { mutableStateOf<Uri?>(null) }
     var pdfNombreGenerado by remember { mutableStateOf("") }
+    var pagos by remember { mutableStateOf(listOf<Pago>()) }
+    var mostrarDialogoPago by remember { mutableStateOf(false) }
 
-    // Calcular saldo pendiente
-    val saldoPendiente = evento.precioTotal - evento.anticipo
+    fun recargarPagos() {
+        pagoViewModel.obtenerPagosDeEvento(evento.id) { lista ->
+            pagos = lista.sortedBy { it.fecha }
+        }
+    }
+
+    // Saldo pendiente calculado en vivo sumando todos los Pago de este evento —
+    // ya no depende de editar el campo "anticipo" a mano.
+    val totalPagado = pagos.sumOf { it.monto }
+    val saldoPendiente = evento.precioTotal - totalPagado
     val estaLiquidado = saldoPendiente <= 0.0
 
     LaunchedEffect(Unit) {
+        recargarPagos()
         usuarioViewModel.obtenerUsuarios { listaEmpleados ->
             empleados = listaEmpleados.filter { it.id in evento.listaIdsEmpleados }
         }
@@ -859,6 +874,63 @@ fun EventoDetallesDialog(
                             }
                         )
 
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Historial de Pagos - suma en vivo lo que alimenta el Saldo Pendiente de arriba
+                        DetalleSeccion(
+                            titulo = "Historial de Pagos",
+                            contenido = {
+                                if (pagos.isEmpty()) {
+                                    Text(
+                                        text = "Sin pagos registrados todavía",
+                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                        )
+                                    )
+                                } else {
+                                    pagos.forEach { pago ->
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 6.dp),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column {
+                                                Text(
+                                                    text = pago.tipo.replaceFirstChar { it.uppercase() },
+                                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = MaterialTheme.colorScheme.onSurface
+                                                    )
+                                                )
+                                                Text(
+                                                    text = pago.fecha,
+                                                    style = MaterialTheme.typography.bodySmall.copy(
+                                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                                    )
+                                                )
+                                            }
+                                            Text(
+                                                text = "+$${String.format(java.util.Locale.getDefault(), "%.2f", pago.monto)}",
+                                                style = MaterialTheme.typography.bodyLarge.copy(
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = SuccessGreen
+                                                )
+                                            )
+                                        }
+                                    }
+                                }
+
+                                if (currentUser?.rol == "admin" || currentUser?.rol == "super_admin") {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    TextButton(onClick = { mostrarDialogoPago = true }) {
+                                        Text("+ Registrar Pago", color = BrandGold, fontWeight = FontWeight.SemiBold)
+                                    }
+                                }
+                            }
+                        )
+
                         // Botón de PDF del contrato (solo para admin y super admin)
                         // NOTA: se quitó el botón "PDF Trabajadores" — con datos/wifi disponibles en el
                         // evento, los empleados ya consultan todo desde su perfil en la app (checklist
@@ -941,6 +1013,184 @@ fun EventoDetallesDialog(
                 }
             }
         )
+    }
+
+    if (mostrarDialogoPago) {
+        RegistrarPagoDialog(
+            pagoViewModel = pagoViewModel,
+            idEvento = evento.id,
+            onDismiss = { mostrarDialogoPago = false },
+            onPagoRegistrado = {
+                mostrarDialogoPago = false
+                recargarPagos()
+            }
+        )
+    }
+}
+
+@Composable
+fun RegistrarPagoDialog(
+    pagoViewModel: PagoViewModel,
+    idEvento: String,
+    onDismiss: () -> Unit,
+    onPagoRegistrado: () -> Unit
+) {
+    val context = LocalContext.current
+    var montoTexto by remember { mutableStateOf("") }
+    var tipo by remember { mutableStateOf("liquidacion") }
+    var fecha by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf("") }
+    var guardando by remember { mutableStateOf(false) }
+
+    val opcionesTipo = listOf("liquidacion" to "Liquidación", "abono" to "Abono")
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Text(
+                    text = "Registrar Pago",
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = BrandGold
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = "TIPO DE PAGO",
+                    style = MaterialTheme.typography.labelSmall.copy(color = BrandGold.copy(alpha = 0.7f))
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    opcionesTipo.forEach { (valor, etiqueta) ->
+                        val seleccionado = tipo == valor
+                        Card(
+                            modifier = Modifier
+                                .clickable { tipo = valor }
+                                .border(
+                                    width = 1.dp,
+                                    color = if (seleccionado) BrandGold else CardBorder,
+                                    shape = RoundedCornerShape(20.dp)
+                                ),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (seleccionado) WarningGoldBg else MaterialTheme.colorScheme.surface
+                            ),
+                            shape = RoundedCornerShape(20.dp),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                        ) {
+                            Text(
+                                text = etiqueta,
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontWeight = FontWeight.Medium,
+                                    color = if (seleccionado) WarningGold else MaterialTheme.colorScheme.onSurface
+                                ),
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OutlinedTextField(
+                    value = montoTexto,
+                    onValueChange = {
+                        val filtrado = it.filter { c -> c.isDigit() || c == '.' }
+                        if (filtrado.count { c -> c == '.' } <= 1) montoTexto = filtrado
+                    },
+                    label = { Text("Monto") },
+                    prefix = { Text("$") },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = BrandGold,
+                        focusedLabelColor = BrandGold,
+                        cursorColor = BrandGold
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = fecha,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Fecha del pago") },
+                    trailingIcon = {
+                        Icon(
+                            Icons.Default.DateRange,
+                            contentDescription = "Seleccionar fecha",
+                            tint = BrandGold,
+                            modifier = Modifier.clickable {
+                                showDatePicker(context) { seleccionada -> fecha = seleccionada }
+                            }
+                        )
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = BrandGold,
+                        focusedLabelColor = BrandGold,
+                        cursorColor = BrandGold
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showDatePicker(context) { seleccionada -> fecha = seleccionada } }
+                )
+
+                if (error.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(error, color = ErrorRed, style = MaterialTheme.typography.bodySmall)
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    TextButton(onClick = onDismiss, modifier = Modifier.weight(1f)) {
+                        Text("Cancelar")
+                    }
+                    Button(
+                        onClick = {
+                            val monto = montoTexto.toDoubleOrNull()
+                            if (monto == null || monto <= 0.0 || fecha.isBlank()) {
+                                error = "Completa monto y fecha"
+                                return@Button
+                            }
+                            guardando = true
+                            val partes = fecha.split("/")
+                            val mes = "${partes.getOrNull(2)}-${partes.getOrNull(1)?.padStart(2, '0')}"
+                            pagoViewModel.agregarPago(
+                                idEvento = idEvento,
+                                monto = monto,
+                                tipo = tipo,
+                                fecha = fecha,
+                                mes = mes,
+                                onSuccess = {
+                                    guardando = false
+                                    onPagoRegistrado()
+                                },
+                                onFailure = {
+                                    guardando = false
+                                    error = "Error al guardar: ${it.message}"
+                                }
+                            )
+                        },
+                        enabled = !guardando,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = BrandGold,
+                            contentColor = BrandBlack
+                        ),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(if (guardando) "Guardando..." else "Guardar")
+                    }
+                }
+            }
+        }
     }
 }
 
