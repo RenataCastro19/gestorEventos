@@ -922,7 +922,7 @@ fun EventoDetallesDialog(
                                     }
                                 }
 
-                                if (currentUser?.rol == "admin" || currentUser?.rol == "super_admin") {
+                                if ((currentUser?.rol == "admin" || currentUser?.rol == "super_admin") && !estaLiquidado) {
                                     Spacer(modifier = Modifier.height(8.dp))
                                     TextButton(onClick = { mostrarDialogoPago = true }) {
                                         Text("+ Registrar Pago", color = BrandGold, fontWeight = FontWeight.SemiBold)
@@ -1019,6 +1019,7 @@ fun EventoDetallesDialog(
         RegistrarPagoDialog(
             pagoViewModel = pagoViewModel,
             idEvento = evento.id,
+            saldoPendiente = saldoPendiente,
             onDismiss = { mostrarDialogoPago = false },
             onPagoRegistrado = {
                 mostrarDialogoPago = false
@@ -1032,6 +1033,7 @@ fun EventoDetallesDialog(
 fun RegistrarPagoDialog(
     pagoViewModel: PagoViewModel,
     idEvento: String,
+    saldoPendiente: Double,
     onDismiss: () -> Unit,
     onPagoRegistrado: () -> Unit
 ) {
@@ -1043,6 +1045,17 @@ fun RegistrarPagoDialog(
     var guardando by remember { mutableStateOf(false) }
 
     val opcionesTipo = listOf("liquidacion" to "Liquidación", "abono" to "Abono")
+
+    // En "Liquidación" el monto siempre es exactamente el saldo pendiente — no tiene caso
+    // que la persona lo edite, porque liquidar significa "pagar lo que falta", ni más ni menos.
+    LaunchedEffect(tipo) {
+        if (tipo == "liquidacion") {
+            montoTexto = String.format(java.util.Locale.getDefault(), "%.2f", saldoPendiente)
+        } else {
+            montoTexto = ""
+        }
+        error = ""
+    }
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -1099,11 +1112,17 @@ fun RegistrarPagoDialog(
                 OutlinedTextField(
                     value = montoTexto,
                     onValueChange = {
-                        val filtrado = it.filter { c -> c.isDigit() || c == '.' }
-                        if (filtrado.count { c -> c == '.' } <= 1) montoTexto = filtrado
+                        if (tipo == "abono") {
+                            val filtrado = it.filter { c -> c.isDigit() || c == '.' }
+                            if (filtrado.count { c -> c == '.' } <= 1) montoTexto = filtrado
+                        }
                     },
+                    readOnly = tipo == "liquidacion",
                     label = { Text("Monto") },
                     prefix = { Text("$") },
+                    supportingText = {
+                        Text("Saldo pendiente: $${String.format(java.util.Locale.getDefault(), "%.2f", saldoPendiente)}")
+                    },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = BrandGold,
                         focusedLabelColor = BrandGold,
@@ -1158,6 +1177,10 @@ fun RegistrarPagoDialog(
                             val monto = montoTexto.toDoubleOrNull()
                             if (monto == null || monto <= 0.0 || fecha.isBlank()) {
                                 error = "Completa monto y fecha"
+                                return@Button
+                            }
+                            if (monto > saldoPendiente + 0.01) {
+                                error = "El monto no puede ser mayor al saldo pendiente ($${String.format(java.util.Locale.getDefault(), "%.2f", saldoPendiente)})"
                                 return@Button
                             }
                             guardando = true

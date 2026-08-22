@@ -357,7 +357,8 @@ class MainActivity : ComponentActivity() {
                             if (usuarioActual?.rol == "super_admin" || usuarioActual?.rol == "admin") {
                                 GastosListScreen(
                                     usuarioActual = usuarioActual!!,
-                                    onAgregarGastoClick = { navController.navigate("agregar_gasto") }
+                                    onAgregarGastoClick = { navController.navigate("agregar_gasto") },
+                                    onCorteMensualClick = { navController.navigate("corte_mensual") }
                                 )
                             } else {
                                 LaunchedEffect(Unit) {
@@ -376,6 +377,19 @@ class MainActivity : ComponentActivity() {
                                         navController.popBackStack()
                                     }
                                 )
+                            } else {
+                                LaunchedEffect(Unit) {
+                                    navController.navigate("login") {
+                                        popUpTo("login") { inclusive = true }
+                                    }
+                                }
+                            }
+                        }
+
+                        // CORTE MENSUAL - solo admin y super_admin
+                        composable("corte_mensual") {
+                            if (usuarioActual?.rol == "super_admin" || usuarioActual?.rol == "admin") {
+                                CorteMensualScreen()
                             } else {
                                 LaunchedEffect(Unit) {
                                     navController.navigate("login") {

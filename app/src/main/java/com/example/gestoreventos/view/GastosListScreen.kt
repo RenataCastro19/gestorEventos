@@ -32,6 +32,7 @@ import java.util.Locale
 fun GastosListScreen(
     usuarioActual: Usuario,
     onAgregarGastoClick: () -> Unit = {},
+    onCorteMensualClick: () -> Unit = {},
     gastoViewModel: GastoViewModel = viewModel()
 ) {
     // NOTA: esta pantalla asume que solo se navega aquí para admin/super_admin —
@@ -61,6 +62,14 @@ fun GastosListScreen(
             ),
             modifier = Modifier.padding(bottom = 24.dp)
         )
+
+        GastosButton(
+            text = "Corte Mensual",
+            onClick = onCorteMensualClick,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
 
         GastosButton(
             text = "Registrar Gasto",
