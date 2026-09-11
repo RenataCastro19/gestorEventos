@@ -28,6 +28,11 @@ import com.example.gestoreventos.ui.theme.BrandGold
 import com.example.gestoreventos.ui.theme.BlackSurface
 import com.example.gestoreventos.ui.theme.BlackBorder
 import com.example.gestoreventos.ui.theme.ErrorRed
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Fingerprint
+import androidx.fragment.app.FragmentActivity
+import com.example.gestoreventos.utils.BiometricAuthHelper
+import com.example.gestoreventos.utils.PreferenciasBiometricas
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.gestoreventos.viewmodel.UsuarioViewModel
@@ -35,6 +40,7 @@ import com.example.gestoreventos.viewmodel.UsuarioViewModel
 @Composable
 fun LoginScreen(
     navController: NavController,
+    activity: FragmentActivity,
     usuarioViewModel: UsuarioViewModel = viewModel()
 ) {
     val context = LocalContext.current
@@ -44,8 +50,19 @@ fun LoginScreen(
     var id by remember { mutableStateOf("") }
     var contrasena by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
+    var usarHuella by remember { mutableStateOf(false) }
+    var mostrarBotonHuella by remember { mutableStateOf(false) }
+    val biometriaDisponible = remember { BiometricAuthHelper.biometriaDisponible(context) }
 
     val isLoading by usuarioViewModel.isLoading.collectAsState()
+
+    // Revisa si en ESTE celular ya se activó la huella antes, para ofrecer el atajo
+    LaunchedEffect(Unit) {
+        val ultimoId = PreferenciasBiometricas.obtenerUltimoId(context)
+        mostrarBotonHuella = ultimoId != null &&
+                biometriaDisponible &&
+                PreferenciasBiometricas.estaHabilitada(context, ultimoId)
+    }
 
     // Cargar logo desde raw
     val logoBitmap = remember {
@@ -94,6 +111,46 @@ fun LoginScreen(
                     color = BrandGold,
                     modifier = Modifier.padding(bottom = 28.dp)
                 )
+
+                if (mostrarBotonHuella) {
+                    Button(
+                        onClick = {
+                            BiometricAuthHelper.mostrarPrompt(
+                                activity = activity,
+                                onExito = {
+                                    usuarioViewModel.restaurarSesionDesdeAuth { usuario ->
+                                        if (usuario == null) {
+                                            error = "No se pudo restaurar la sesión, inicia sesión con tu contraseña"
+                                        }
+                                        // Si no es null, la navegación ya la maneja MainActivity solo
+                                    }
+                                },
+                                onError = { mensaje -> error = mensaje },
+                                onCancelado = { /* se queda en el formulario normal */ }
+                            )
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = BlackSurface,
+                            contentColor = BrandGold
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                    ) {
+                        Icon(Icons.Default.Fingerprint, contentDescription = "Entrar con huella")
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Entrar con huella", fontWeight = FontWeight.Bold)
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "o inicia sesión con tu contraseña",
+                        color = BlackBorder,
+                        fontSize = 13.sp,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+                }
 
                 OutlinedTextField(
                     value = id,
@@ -151,6 +208,26 @@ fun LoginScreen(
                         .fillMaxWidth()
                         .padding(bottom = 24.dp)
                 )
+                if (biometriaDisponible) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 12.dp)
+                    ) {
+                        Checkbox(
+                            checked = usarHuella,
+                            onCheckedChange = { usarHuella = it },
+                            colors = CheckboxDefaults.colors(checkedColor = BrandGold)
+                        )
+                        Text(
+                            text = "Usar huella la próxima vez",
+                            color = BrandGold,
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+
                 if (error != null) {
                     Text(
                         text = error ?: "",
@@ -171,6 +248,10 @@ fun LoginScreen(
                             id = id,
                             contrasena = contrasena,
                             onSuccess = { usuario ->
+                                PreferenciasBiometricas.guardarUltimoId(context, id)
+                                if (usarHuella && biometriaDisponible) {
+                                    PreferenciasBiometricas.habilitar(context, id)
+                                }
                                 when (usuario.rol) {
                                     "super_admin" -> navController.navigate("superadmin_home")
                                     "admin" -> navController.navigate("admin_home")

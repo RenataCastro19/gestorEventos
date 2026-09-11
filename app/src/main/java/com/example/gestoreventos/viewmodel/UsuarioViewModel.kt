@@ -116,6 +116,18 @@ class UsuarioViewModel : ViewModel() {
     fun logout() {
         _usuarioActual.value = null
     }
+    fun restaurarSesionDesdeAuth(onResult: (Usuario?) -> Unit) {
+        val email = auth.currentUser?.email
+        if (email == null) {
+            onResult(null)
+            return
+        }
+        val id = email.substringBefore("@")
+        repository.obtenerUsuarioPorId(id) { usuario ->
+            _usuarioActual.value = usuario
+            onResult(usuario)
+        }
+    }
 
     fun tienePermiso(permisoRequerido: String): Boolean {
         val usuario = _usuarioActual.value ?: return false
